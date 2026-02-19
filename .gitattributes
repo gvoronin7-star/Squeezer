@@ -1,0 +1,107 @@
+# Auto detect text files and perform LF normalization
+* text=auto
+
+# Source code
+*.py text eol=lf
+*.js text eol=lf
+*.ts text eol=lf
+*.jsx text eol=lf
+*.tsx text eol=lf
+*.html text eol=lf
+*.css text eol=lf
+*.scss text eol=lf
+*.json text eol=lf
+*.xml text eol=lf
+*.yaml text eol=lf
+*.yml text eol=lf
+*.toml text eol=lf
+*.ini text eol=lf
+*.cfg text eol=lf
+*.conf text eol=lf
+*.sh text eol=lf
+*.bat text eol=crlf
+*.cmd text eol=crlf
+*.ps1 text eol=crlf
+
+# Documentation
+*.md text eol=lf
+*.txt text eol=lf
+*.rst text eol=lf
+README text eol=lf
+LICENSE text eol=lf
+AUTHORS text eol=lf
+CHANGELOG text eol=lf
+CONTRIBUTING text eol=lf
+
+# Configuration
+.env text eol=lf
+.env.example text eol=lf
+.gitignore text eol=lf
+.gitattributes text eol=lf
+.gitmodules text eol=lf
+
+# Binary files
+*.pdf binary
+*.jpg binary
+*.jpeg binary
+*.png binary
+*.gif binary
+*.ico binary
+*.svg binary
+*.woff binary
+*.woff2 binary
+*.ttf binary
+*.eot binary
+*.mp3 binary
+*.mp4 binary
+*.avi binary
+*.mov binary
+*.zip binary
+*.tar binary
+*.tar.gz binary
+*.rar binary
+*.7z binary
+*.exe binary
+*.dll binary
+*.so binary
+*.dylib binary
+*.faiss binary
+*.pkl binary
+*.pickle binary
+
+# Database
+*.db binary
+*.sqlite binary
+*.sqlite3 binary
+
+# Generated files
+*.pyc binary
+*.pyo binary
+*.pyd binary
+*.pyc binary
+__pycache__/ binary linguist-generated
+*.egg-info/ binary linguist-generated
+dist/ binary linguist-generated
+build/ binary linguist-generated
+*.egg binary linguist-generated
+
+# IDE
+.idea/ binary linguist-generated
+.vscode/ binary linguist-generated
+*.swp binary
+*.swo binary
+*~ binary
+.DS_Store binary
+Thumbs.db binary
+
+# OS
+.DS_Store binary
+._* binary
+.Spotlight-V100 binary
+.Trashes binary
+ehthumbs.db binary
+Desktop.ini binary
+
+# Large files
+*.faiss binary
+*.index binary

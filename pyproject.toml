@@ -1,0 +1,152 @@
+[build-system]
+requires = ["setuptools>=45", "wheel", "setuptools_scm>=6.2"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "squeezer"
+dynamic = ["version"]
+description = "RAG System for PDF Processing - Extract, Process, Vectorize"
+readme = "README_PRODUCTION.md"
+license = {text = "MIT"}
+authors = [
+    {name = "Line_GV", email = "contact@example.com"}
+]
+maintainers = [
+    {name = "Line_GV", email = "contact@example.com"}
+]
+keywords = [
+    "rag",
+    "pdf",
+    "nlp",
+    "vectorization",
+    "embeddings",
+    "faiss",
+    "openai",
+    "ocr",
+    "text-processing"
+]
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Topic :: Text Processing :: Linguistic",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Operating System :: OS Independent",
+    "Natural Language :: Russian",
+    "Natural Language :: English",
+]
+requires-python = ">=3.8"
+dependencies = [
+    "PyPDF2>=3.0.0",
+    "pdfplumber>=0.9.0",
+    "pdf2image>=1.16.0",
+    "pytesseract>=0.3.10",
+    "Pillow>=9.0.0",
+    "chardet>=5.0.0",
+    "openai>=1.0.0",
+    "faiss-cpu>=1.7.0",
+    "numpy>=1.21.0",
+    "python-dotenv>=1.0.0",
+    "tkinter-tooltip>=2.0.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0.0",
+    "pytest-cov>=4.0.0",
+    "black>=23.0.0",
+    "flake8>=6.0.0",
+    "mypy>=1.0.0",
+    "isort>=5.12.0",
+]
+docs = [
+    "sphinx>=5.0.0",
+    "sphinx-rtd-theme>=1.2.0",
+    "myst-parser>=0.18.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/gvoronin7-star/Squeezer"
+Documentation = "https://github.com/gvoronin7-star/Squeezer#readme"
+Repository = "https://github.com/gvoronin7-star/Squeezer.git"
+Issues = "https://github.com/gvoronin7-star/Squeezer/issues"
+Changelog = "https://github.com/gvoronin7-star/Squeezer/blob/main/CHANGELOG.md"
+
+[project.scripts]
+squeezer = "squeezer:main"
+squeezer-gui = "gui_app:main"
+rag-builder = "rag_builder:main"
+
+[tool.setuptools]
+packages = ["src"]
+
+[tool.setuptools.package-data]
+"src" = ["*.json", "*.txt", "*.md"]
+
+[tool.setuptools_scm]
+write_to = "src/_version.py"
+fallback_version = "2.4.0"
+
+[tool.black]
+line-length = 100
+target-version = ['py38', 'py39', 'py310', 'py311']
+include = '\.pyi?$'
+exclude = '''
+/(
+    \.git
+  | \.venv
+  | venv
+  | build
+  | dist
+  | \.eggs
+  | \.tox
+  | __pycache__
+)/
+'''
+
+[tool.isort]
+profile = "black"
+line_length = 100
+multi_line_output = 3
+include_trailing_comma = true
+force_grid_wrap = 0
+use_parentheses = true
+ensure_newline_before_comments = true
+
+[tool.mypy]
+python_version = "3.8"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = false
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = "-v --cov=src --cov-report=html --cov-report=term-missing"
+
+[tool.coverage.run]
+source = ["src"]
+omit = [
+    "*/tests/*",
+    "*/__pycache__/*",
+    "*/site-packages/*",
+]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "raise AssertionError",
+    "raise NotImplementedError",
+    "if __name__ == .__main__.:",
+    "if TYPE_CHECKING:",
+]

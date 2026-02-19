@@ -1,0 +1,44 @@
+include README.md
+include README_PRODUCTION.md
+include USER_GUIDE.md
+include ARCHITECTURE.md
+include CHANGELOG.md
+include BACKUP_GUIDE.md
+include RAG_BUILDER_GUIDE.md
+include SETUP.md
+include DEPLOYMENT.md
+include SECURITY.md
+include CONTRIBUTING.md
+include CODE_OF_CONDUCT.md
+include LICENSE
+include AUTHORS
+include VERSION
+include DOCS_INDEX.md
+include requirements.txt
+include config.json
+include .env.example
+include .gitignore
+include .gitattributes
+include MANIFEST.in
+include PULL_REQUEST_TEMPLATE.md
+include ISSUE_TEMPLATE.md
+
+recursive-include src *.py
+recursive-include docs *.md
+recursive-include .github *.md
+
+global-exclude __pycache__
+global-exclude *.py[cod]
+global-exclude *.so
+global-exclude *.pyc
+global-exclude *.pyo
+global-exclude *.pyd
+global-exclude *.egg-info
+global-exclude .DS_Store
+global-exclude Thumbs.db
+global-exclude *.log
+global-exclude .env
+global-exclude venv
+global-exclude .venv
+global-exclude .idea
+global-exclude .vscode
