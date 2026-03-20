@@ -1,6 +1,6 @@
 # Руководство пользователя "Соковыжималка" (Squeezer)
 
-**Версия:** 2.4.0
+**Версия:** 3.3.0  
 **Автор:** [Line_GV](https://t.me/Line_GV)
 
 ## Введение
@@ -19,6 +19,7 @@
 Дополнительно система включает:
 - **RAG Builder** — создание готовых RAG-баз данных из PDF-файлов
 - **Система бэкапа и восстановления** — защита данных и возможность отката изменений
+- **LLM-обогащение** — автоматическое обогащение метаданных чанков с помощью AI
 
 ## Установка
 
@@ -90,6 +91,44 @@ pip install -r requirements.txt
 ```bash
 python squeezer.py --input document.pdf --output output_module_2/
 ```
+
+## Выбор LLM модели
+
+Система поддерживает работу с LLM моделями через proxyAPI для обогащения метаданных чанков.
+
+### В GUI
+
+1. Запустите приложение: `python gui_app.py`
+2. В разделе "Настройки" найдите поле "Модель LLM"
+3. Выберите модель из выпадающего списка
+4. Под полем появится описание выбранной модели
+
+### В CLI
+
+```bash
+python squeezer.py --input document.pdf --output output/ --llm-model gpt-4o-mini
+```
+
+### Доступные модели
+
+**OpenAI (через OpenAI SDK):**
+- **gpt-4o-mini** - ⚡ Быстрая и дешёвая (по умолчанию)
+- **gpt-4o** - ⭐ Лучшее качество OpenAI
+
+**Claude (через Anthropic SDK):**
+- **claude-sonnet-4-6** - 🏆 Лучший баланс, 1M контекст
+- **claude-haiku-4-5** - 💨 Быстрый Claude
+- **claude-opus-4-6** - 👑 Максимальное качество
+
+### Рекомендации по выбору
+
+| Сценарий | Модель | Причина |
+|----------|--------|---------|
+| **Обычная обработка** | gpt-4o-mini | Быстрая, дешёвая |
+| **Большие документы** | claude-sonnet-4-6 | 1M токенов контекста |
+| **Максимальное качество** | claude-opus-4-6 | Лучшее качество |
+
+> 📖 Подробнее см. [PROXYAPI_GUIDE.md](docs/guides/PROXYAPI_GUIDE.md)
 
 ## Использование
 
@@ -231,8 +270,6 @@ for dist, idx in zip(distances[0], indices[0]):
     print(f"Расстояние: {dist:.4f}")
     print()
 ```
-
-Подробнее см. [RAG_BUILDER_GUIDE.md](RAG_BUILDER_GUIDE.md)
 
 ### Использование как библиотеки
 
@@ -482,17 +519,18 @@ for i, (dist, idx) in enumerate(zip(distances[0], indices[0])):
 
 ```json
 {
-  "version": "2.2.0",
+  "version": "3.3.0",
   "author": "Line_GV",
   "author_url": "https://t.me/Line_GV",
-  "release_date": "2026-02-18",
+  "release_date": "2026-03-20",
   "input_dir": "./pdfs/",
-  "output_dir": "./output_module_2/",
+  "output_dir": "./output/",
   "chunk_size": 500,
   "overlap": 50,
   "embedding_model": "text-embedding-3-small",
+  "llm_model": "gpt-4o-mini",
   "vector_db_type": "faiss",
-  "api_base": "https://openai.api.proxyapi.ru/v1",
+  "api_base": "https://api.proxyapi.ru/openai/v1",
   "ocr_enabled": true,
   "log_level": "INFO"
 }
@@ -539,64 +577,16 @@ OPENAI_API_BASE=https://openai.api.proxyapi.ru/v1
 Создаёт полную копию системы в папку `backups/`:
 
 ```bash
-python create_backup.py
+python utils/create_backup.py
 ```
-
-**Что копируется:**
-- Все исходные файлы проекта (`src/`, `ui/`, и т.д.)
-- Конфигурационные файлы
-- Документация
-
-**Что НЕ копируется:**
-- Временные файлы (`__pycache__`, `*.pyc`)
-- Логи (`logs/`, `*.log`)
-- Виртуальное окружение (`venv/`, `.env`)
-- Выходные данные (`output/`, `rag_bases/`)
-- PDF файлы (`pdfs/`)
-- Git метаданные (`.git/`)
 
 ### Восстановление из бэкапа
 
 Восстанавливает систему из выбранного бэкапа:
 
 ```bash
-python restore_backup.py
+python utils/restore_backup.py
 ```
-
-**Действия:**
-1. Показывает список доступных бэкапов
-2. Позволяет выбрать нужный бэкап
-3. Предлагает выбрать режим:
-   - **Обычный** - копирует файлы в проект
-   - **Проверка** - только показывает что будет сделано
-
-### Рекомендации по бэкапу
-
-**Перед обновлением версии:**
-```bash
-# 1. Создайте бэкап
-python create_backup.py
-
-# 2. Установите новую версию
-pip install --upgrade squeezer-rag
-
-# 3. Если что-то пошло не так, восстановитесь
-python restore_backup.py
-```
-
-**Перед критическими изменениями:**
-```bash
-# Создайте бэкап перед изменением кода
-python create_backup.py
-
-# Внесите изменения в код
-# ...
-
-# Если нужно откатиться
-python restore_backup.py
-```
-
-Подробнее см. [BACKUP_GUIDE.md](BACKUP_GUIDE.md)
 
 ## Устранение неполадок
 

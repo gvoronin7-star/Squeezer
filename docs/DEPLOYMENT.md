@@ -1,8 +1,8 @@
 # Руководство по развертыванию (Deployment Guide)
 
-**Версия:** 2.4.0  
+**Версия:** 3.3.0
 **Статус:** Production Ready  
-**Дата последнего обновления:** 2026-02-18
+**Дата последнего обновления:** 2026-03-20
 
 ---
 
@@ -85,7 +85,7 @@
 
 ### Шаг 1: Установка
 
-Следуйте инструкциям в [SETUP.md](SETUP.md).
+Следуйте инструкциям в [SETUP.md](../SETUP.md).
 
 ### Шаг 2: Конфигурация
 
@@ -100,12 +100,13 @@ cp .env.example .env
 
 ```json
 {
-  "version": "2.4.0",
+  "version": "3.3.0",
   "input_dir": "./pdfs/",
   "output_dir": "./output/",
   "chunk_size": 500,
   "overlap": 50,
   "embedding_model": "text-embedding-3-small",
+  "llm_model": "gpt-4o-mini",
   "vector_db_type": "faiss",
   "api_base": "https://openai.api.proxyapi.ru/v1",
   "ocr_enabled": true,
@@ -145,7 +146,7 @@ FROM python:3.9-slim
 
 # Метаданные
 LABEL maintainer="Line_GV <https://t.me/Line_GV>"
-LABEL version="2.4.0"
+LABEL version="3.3.0"
 LABEL description="Squeezer - RAG System for PDF Processing"
 
 # Установка системных зависимостей
@@ -255,7 +256,7 @@ docker-compose exec squeezer python squeezer.py --help
 docker-compose exec squeezer python rag_builder.py
 
 # Создание бэкапа
-docker-compose exec squeezer python create_backup.py
+docker-compose exec squeezer python utils/create_backup.py
 ```
 
 ---
@@ -362,16 +363,14 @@ aws s3 mb s3://squeezer-backups
 
 ```bash
 # Ежедневный бэкап в 2:00 ночи
-0 2 * * * cd /path/to/squeezer && /usr/bin/python3 create_backup.py >> /var/log/squeezer_backup.log 2>&1
+0 2 * * * cd /path/to/squeezer && /usr/bin/python3 utils/create_backup.py >> /var/log/squeezer_backup.log 2>&1
 ```
 
 ### Восстановление
 
 ```bash
-python restore_backup.py
+python utils/restore_backup.py
 ```
-
-Подробнее: [BACKUP_GUIDE.md](BACKUP_GUIDE.md)
 
 ---
 
@@ -381,7 +380,7 @@ python restore_backup.py
 
 ```bash
 # 1. Создайте бэкап
-python create_backup.py
+python utils/create_backup.py
 
 # 2. Получите обновления
 git pull origin main
@@ -414,7 +413,7 @@ python squeezer.py --help
 - [ ] Создайте план аварийного восстановления
 - [ ] Регулярно создавайте бэкапы
 
-Подробнее: [SECURITY.md](SECURITY.md)
+Подробнее: [SECURITY.md](../SECURITY.md)
 
 ---
 
@@ -468,8 +467,8 @@ services:
 Если у вас возникли проблемы с развертыванием:
 
 1. Проверьте этот документ
-2. Посмотрите [SECURITY.md](SECURITY.md)
-3. Проверьте [SETUP.md](SETUP.md)
+2. Посмотрите [SECURITY.md](../SECURITY.md)
+3. Проверьте [SETUP.md](../SETUP.md)
 4. Создайте Issue на GitHub
 5. Свяжитесь с автором: [Line_GV](https://t.me/Line_GV)
 
@@ -484,5 +483,5 @@ services:
 ---
 
 **Автор:** Line_GV  
-**Версия:** 2.4.0  
-**Дата последнего обновления:** 2026-02-18
+**Версия:** 3.3.0
+**Дата последнего обновления:** 2026-03-20

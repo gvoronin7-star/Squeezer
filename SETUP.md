@@ -1,7 +1,8 @@
 # Установка и настройка "Соковыжималка" (Squeezer)
 
-**Версия:** 3.1.0  
+**Версия:** 3.3.0  
 **Статус:** Production Ready
+**Дата последнего обновления:** 2026-03-20
 
 ---
 
@@ -13,7 +14,7 @@
 - **Python:** 3.8 или выше
 - **RAM:** 4 ГБ (рекомендуется 8 ГБ)
 - **Место на диске:** 500 МБ + место для PDF-файлов и выходных данных
-- **Интернет-соединение:** Для векторизации (OpenAI API)
+- **Интернет-соединение:** Для векторизации и LLM (OpenAI/Anthropic API)
 
 ### Рекомендуемые требования
 
@@ -65,6 +66,17 @@ source venv/bin/activate
 pip install --upgrade pip
 pip install -r requirements.txt
 ```
+
+**Примечание:** Для работы с Claude моделями требуется `anthropic` SDK:
+```bash
+pip install anthropic
+```
+
+**Поддерживаемые LLM модели:**
+- **OpenAI:** gpt-4o-mini, gpt-4o (через OpenAI SDK)
+- **Claude:** claude-sonnet-4-6, claude-haiku-4-5, claude-opus-4-6 (через Anthropic SDK)
+
+> 📖 Подробнее см. [PROXYAPI_GUIDE.md](docs/guides/PROXYAPI_GUIDE.md)
 
 ### Шаг 5: Установка Tesseract OCR (для сканированных PDF)
 
@@ -367,10 +379,9 @@ python restore_backup.py
 ## Дополнительные ресурсы
 
 - [Руководство пользователя](USER_GUIDE.md)
-- [Production документация](README_PRODUCTION.md)
-- [Руководство по бэкапу](BACKUP_GUIDE.md)
-- [Архитектура проекта](ARCHITECTURE.md)
-- [API документация](docs/)
+- [Архитектура проекта](docs/ARCHITECTURE.md)
+- [API документация](docs/api/)
+- [Работа с LLM моделями](docs/guides/PROXYAPI_GUIDE.md)
 
 ---
 
@@ -386,5 +397,5 @@ python restore_backup.py
 ---
 
 **Автор:** Line_GV  
-**Версия:** 3.1.0  
-**Дата последнего обновления:** 2026-03-07
+**Версия:** 3.3.0
+**Дата последнего обновления:** 2026-03-20

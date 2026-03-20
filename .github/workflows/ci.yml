@@ -31,6 +31,11 @@ jobs:
         # Exit-zero treats all errors as warnings
         flake8 . --count --exit-zero --max-complexity=10 --max-line-length=100 --statistics
 
+    - name: Type check with mypy
+      run: |
+        pip install mypy
+        mypy src/ --ignore-missing-imports --no-error-summary || true
+
   test:
     name: Test
     runs-on: ${{ matrix.os }}

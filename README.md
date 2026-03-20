@@ -1,9 +1,9 @@
 # Руководство пользователя "Соковыжималка" (Squeezer)
 
-**Версия:** 3.2.0  
+**Версия:** 3.3.0  
 **Автор:** [Line_GV](https://t.me/Line_GV)
 
-> **📋 Полная история проекта:** см. [PROJECT_SUMMARY.md](PROJECT_SUMMARY.md)
+> **📋 История изменений:** см. [CHANGELOG.md](CHANGELOG.md)
 
 ## Введение
 
@@ -17,6 +17,40 @@
 6. Добавление метаданных
 7. Проверка качества данных
 8. Векторизация и сохранение в векторную БД
+
+## Поддержка LLM моделей
+
+Система поддерживает работу с LLM моделями через proxyAPI для обогащения метаданных чанков.
+
+### OpenAI модели (через OpenAI SDK)
+
+- **gpt-4o-mini** - ⚡ Быстрая и дешёвая (рекомендуется по умолчанию)
+- **gpt-4o** - ⭐ Лучшее качество OpenAI
+
+### Claude модели (через Anthropic SDK)
+
+- **claude-sonnet-4-6** - 🏆 Лучший баланс, 1M контекст (рекомендуется для больших документов)
+- **claude-haiku-4-5** - 💨 Быстрый Claude
+- **claude-opus-4-6** - 👑 Максимальное качество
+
+### Выбор модели в GUI
+
+В графическом интерфейсе доступен удобный селектор моделей с пояснениями:
+
+```
+Модель LLM: [GPT-4o Mini - Для обычной обработки ▼]
+            ⚡ Быстрая и дешёвая
+```
+
+### Рекомендации по выбору модели
+
+| Сценарий | Модель | Причина |
+|----------|--------|---------|
+| **Обычная обработка** | gpt-4o-mini | Быстрая, дешёвая |
+| **Большие документы** | claude-sonnet-4-6 | 1M токенов контекста |
+| **Максимальное качество** | claude-opus-4-6 | Лучшее качество |
+
+> 📖 Подробнее см. [PROXYAPI_GUIDE.md](docs/guides/PROXYAPI_GUIDE.md)
 
 ## Установка
 
@@ -384,17 +418,18 @@ for i, (dist, idx) in enumerate(zip(distances[0], indices[0])):
 
 ```json
 {
-  "version": "2.2.0",
+  "version": "3.3.0",
   "author": "Line_GV",
   "author_url": "https://t.me/Line_GV",
-  "release_date": "2026-02-18",
+  "release_date": "2026-03-20",
   "input_dir": "./pdfs/",
-  "output_dir": "./output_module_2/",
+  "output_dir": "./output/",
   "chunk_size": 500,
   "overlap": 50,
   "embedding_model": "text-embedding-3-small",
+  "llm_model": "gpt-4o-mini",
   "vector_db_type": "faiss",
-  "api_base": "https://openai.api.proxyapi.ru/v1",
+  "api_base": "https://api.proxyapi.ru/openai/v1",
   "ocr_enabled": true,
   "log_level": "INFO"
 }
@@ -440,7 +475,7 @@ OPENAI_API_BASE=https://openai.api.proxyapi.ru/v1
 Создаёт полную копию системы в папку `backups/`:
 
 ```bash
-python create_backup.py
+python utils/create_backup.py
 ```
 
 **Что копируется:**
@@ -461,43 +496,8 @@ python create_backup.py
 Восстанавливает систему из выбранного бэкапа:
 
 ```bash
-python restore_backup.py
+python utils/restore_backup.py
 ```
-
-**Действия:**
-1. Показывает список доступных бэкапов
-2. Позволяет выбрать нужный бэкап
-3. Предлагает выбрать режим:
-   - **Обычный** - копирует файлы в проект
-   - **Проверка** - только показывает что будет сделано
-
-### Рекомендации по бэкапу
-
-**Перед обновлением версии:**
-```bash
-# 1. Создайте бэкап
-python create_backup.py
-
-# 2. Установите новую версию
-pip install --upgrade squeezer-rag
-
-# 3. Если что-то пошло не так, восстановитесь
-python restore_backup.py
-```
-
-**Перед критическими изменениями:**
-```bash
-# Создайте бэкап перед изменением кода
-python create_backup.py
-
-# Внесите изменения в код
-# ...
-
-# Если нужно откатиться
-python restore_backup.py
-```
-
-Подробнее см. [BACKUP_GUIDE.md](BACKUP_GUIDE.md)
 
 ## Устранение неполадок
 
@@ -731,6 +731,60 @@ embedding = get_embedding_with_cache(text, model, client)
 # Автоматически проверяет кэш перед запросом к API
 ```
 
+## Тестирование
+
+### Запуск тестов
+
+```bash
+# Установка зависимостей для тестирования
+pip install pytest pytest-cov
+
+# Запуск всех тестов
+python -m pytest tests/ -v
+
+# Запуск с покрытием кода
+python -m pytest tests/ -v --cov=src --cov-report=html
+
+# Запуск конкретного теста
+python -m pytest tests/test_preprocessor.py -v
+```
+
+### Структура тестов
+
+```
+tests/
+├── conftest.py           # Общие фикстуры pytest
+├── test_preprocessor.py  # Тесты модуля предобработки
+├── test_chunker.py       # Тесты модуля чанкинга
+├── test_vectorizer.py    # Тесты модуля векторизации
+├── test_llm_chunker.py   # Тесты LLM-усиленного чанкинга
+├── test_rag_engine.py    # Тесты RAG-движка
+└── integration/          # Интеграционные тесты
+```
+
+### Code Style
+
+Проект использует следующие инструменты для контроля качества кода:
+
+```bash
+# Форматирование кода
+pip install black isort
+black src/ tests/
+isort src/ tests/
+
+# Линтинг
+pip install flake8
+flake8 src/ --max-line-length=100
+
+# Проверка типов
+pip install mypy
+mypy src/ --ignore-missing-imports
+
+# Pre-commit hooks (опционально)
+pip install pre-commit
+pre-commit install
+```
+
 ## Поддержка
 
 **Автор:** Line_GV  
@@ -738,9 +792,10 @@ embedding = get_embedding_with_cache(text, model, client)
 
 ## Ссылки
 
-- [PROJECT_SUMMARY.md](PROJECT_SUMMARY.md) — Полная история проекта
 - [CHANGELOG.md](CHANGELOG.md) — История изменений
 - [ROADMAP.md](ROADMAP.md) — Дорожная карта
+- [PROXYAPI_GUIDE.md](docs/guides/PROXYAPI_GUIDE.md) — Работа с LLM моделями через proxyAPI
+- [GUI_LLM_SELECTOR.md](docs/guides/GUI_LLM_SELECTOR.md) — Документация GUI селектора моделей
 
 ## Лицензия
 

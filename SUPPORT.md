@@ -1,7 +1,7 @@
 # Поддержка проекта "Соковыжималка" (Squeezer)
 
-**Версия:** 3.1.0  
-**Дата последнего обновления:** 2026-03-07
+**Версия:** 3.3.0
+**Дата последнего обновления:** 2026-03-20
 
 ---
 
@@ -18,16 +18,13 @@
 | Документ | Описание |
 |----------|----------|
 | [README.md](README.md) | Руководство пользователя |
-| [README_PRODUCTION.md](README_PRODUCTION.md) | Production документация |
 | [SETUP.md](SETUP.md) | Руководство по установке и настройке |
 | [USER_GUIDE.md](USER_GUIDE.md) | Полное руководство пользователя |
-| [ARCHITECTURE.md](ARCHITECTURE.md) | Архитектура проекта |
-| [BACKUP_GUIDE.md](BACKUP_GUIDE.md) | Руководство по бэкапу |
-| [RAG_BUILDER_GUIDE.md](RAG_BUILDER_GUIDE.md) | Руководство по RAG Builder |
-| [DEPLOYMENT.md](DEPLOYMENT.md) | Руководство по развертыванию |
+| [ARCHITECTURE.md](docs/ARCHITECTURE.md) | Архитектура проекта |
+| [DEPLOYMENT.md](docs/DEPLOYMENT.md) | Руководство по развертыванию |
 | [SECURITY.md](SECURITY.md) | Политика безопасности |
 | [CONTRIBUTING.md](CONTRIBUTING.md) | Как внести вклад |
-| [DOCS_INDEX.md](DOCS_INDEX.md) | Индекс всей документации |
+| [PROXYAPI_GUIDE.md](docs/guides/PROXYAPI_GUIDE.md) | Работа с LLM моделями |
 
 ---
 
@@ -59,7 +56,7 @@ A: Выполните команду: `python squeezer.py --help`
 
 **Q: Как создать RAG-базу?**
 
-A: Выполните команду: `python rag_builder.py` или следуйте [RAG_BUILDER_GUIDE.md](RAG_BUILDER_GUIDE.md).
+A: Выполните команду: `python rag_builder.py` или следуйте [USER_GUIDE.md](USER_GUIDE.md).
 
 ### Ошибки
 
@@ -228,7 +225,7 @@ A: Рекомендуется до 50 МБ. Большие файлы могут
 
 ## Ресурсы
 
-- [Документация](DOCS_INDEX.md)
+- [Документация](README.md)
 - [GitHub Issues](https://github.com/gvoronin7-star/Squeezer/issues)
 - [GitHub Discussions](https://github.com/gvoronin7-star/Squeezer/discussions)
 
@@ -241,5 +238,5 @@ A: Рекомендуется до 50 МБ. Большие файлы могут
 ---
 
 **Автор:** Line_GV  
-**Версия:** 3.1.0  
-**Дата последнего обновления:** 2026-03-07
+**Версия:** 3.3.0
+**Дата последнего обновления:** 2026-03-20

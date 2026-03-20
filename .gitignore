@@ -69,15 +69,15 @@ rag_bases/
 pdfs/*.pdf
 !pdfs/.gitkeep
 
-# Test files
-test_*.py
-*_test.py
+# Test files (debug/temporary only)
 debug_*.txt
 debug_*.py
 create_test_pdf.py
 create_dirty_pdf.py
 test_bengal_pdf.py
 pdf_check.txt
+
+# Note: tests/test_*.py are NOT ignored - these are real unit tests
 
 # Environment variables
 .env
@@ -181,6 +181,9 @@ output/
 output_module_2/
 output_module_3/
 output_module_4/
+test_output/
+test_output_module_4/
+cache/
 *.html
 *.json.bak
 test_results*.json

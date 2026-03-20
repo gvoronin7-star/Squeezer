@@ -6,7 +6,7 @@ build-backend = "setuptools.build_meta"
 name = "squeezer"
 dynamic = ["version"]
 description = "RAG System for PDF Processing - Extract, Process, Vectorize"
-readme = "README_PRODUCTION.md"
+readme = "README.md"
 license = {text = "MIT"}
 authors = [
     {name = "Line_GV", email = "contact@example.com"}
@@ -43,7 +43,7 @@ classifiers = [
 ]
 requires-python = ">=3.8"
 dependencies = [
-    "PyPDF2>=3.0.0",
+    "pypdf>=3.0.0",
     "pdfplumber>=0.9.0",
     "pdf2image>=1.16.0",
     "pytesseract>=0.3.10",
@@ -64,6 +64,11 @@ dev = [
     "flake8>=6.0.0",
     "mypy>=1.0.0",
     "isort>=5.12.0",
+    "pre-commit>=3.0.0",
+]
+test = [
+    "pytest>=7.0.0",
+    "pytest-cov>=4.0.0",
 ]
 docs = [
     "sphinx>=5.0.0",
@@ -91,7 +96,7 @@ packages = ["src"]
 
 [tool.setuptools_scm]
 write_to = "src/_version.py"
-fallback_version = "3.2.0"
+fallback_version = "3.3.0"
 
 [tool.black]
 line-length = 100

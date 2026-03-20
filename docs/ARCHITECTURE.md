@@ -1,9 +1,7 @@
 # Архитектура проекта "Соковыжималка"
 
-**Версия:** 3.2.0  
+**Версия:** 3.3.0
 **Автор:** [Line_GV](https://t.me/Line_GV)
-
-> **📋 Полная история проекта:** см. [PROJECT_SUMMARY.md](PROJECT_SUMMARY.md)
 
 ## Обзор
 
@@ -822,9 +820,8 @@ PDF → preprocessor.py → chunker.py → vectorizer.py
 
 ## Ссылки
 
-- [PROJECT_SUMMARY.md](PROJECT_SUMMARY.md) — Полная история
-- [CHANGELOG.md](CHANGELOG.md) — История изменений
-- [ROADMAP.md](ROADMAP.md) — Дорожная карта
+- [CHANGELOG.md](../CHANGELOG.md) — История изменений
+- [ROADMAP.md](../ROADMAP.md) — Дорожная карта
 
 ## Лицензия
 
