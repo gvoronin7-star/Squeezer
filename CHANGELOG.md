@@ -4,6 +4,81 @@
 
 ---
 
+## [3.3.0] - 2026-03-20
+
+### Добавлено
+
+- **Поддержка LLM моделей через proxyAPI**:
+  - OpenAI модели: gpt-4o-mini, gpt-4o (через OpenAI SDK)
+  - Claude модели: claude-sonnet-4-6, claude-haiku-4-5, claude-opus-4-6 (через Anthropic SDK)
+  - Автоматический выбор SDK по провайдеру
+  - Документация по работе с proxyAPI
+
+- **GUI селектор моделей LLM**:
+  - Выпадающий список с понятными названиями и пояснениями
+  - Описание каждой модели (скорость, качество, use case)
+  - Интерактивное обновление описания при выборе
+  - Рекомендации по выбору модели для разных задач
+
+- **Документация**:
+  - PROXYAPI_REPORT.md - отчёт по работе с proxyAPI
+  - TEST_REPORT.md - результаты тестирования моделей
+  - ANALYSIS_REPORT.md - анализ выявленных "проблем"
+  - GUI_LLM_SELECTOR.md - документация по GUI селектору
+
+### Изменено
+
+- Обновлён `src/llm_chunker.py` с поддержкой Anthropic SDK
+- Обновлён `gui_app.py` с селектором моделей
+- Обновлён `squeezer.py` с моделью по умолчанию gpt-4o-mini
+- Обновлён `batch_process.py` с моделью по умолчанию gpt-4o-mini
+- Обновлён `src/preprocessor.py` с моделью по умолчанию gpt-4o-mini
+
+### Очистка репозитория
+
+- **Удалено 19 временных директорий**:
+  - logs/, output/, output_module_2-4/
+  - cache/, demo_output/, final_test/, final_test2/
+  - output_full/, output_test/
+  - test_analysis_output/, test_batch_output/, test_final/
+  - test_full_pipeline/, test_llm_output/, test_pipeline_output/
+  - test_quick_output/, test_rag_output/
+
+- **Удалено 9 устаревших файлов документации**:
+  - FINAL_INSTRUCTIONS.md, GITHUB_PREPARATION_REPORT.md
+  - README_PRODUCTION.md, DOCS_INDEX.md
+  - RAG_BUILDER_GUIDE.md, BACKUP_GUIDE.md
+  - ISSUE_TEMPLATE.md, PULL_REQUEST_TEMPLATE.md
+  - PROJECT_SUMMARY.md
+
+- **Реорганизована структура**:
+  - Создана директория `examples/` (5 демо-файлов)
+  - Создана директория `tests/` (9 тестов)
+  - Создана директория `utils/` (4 утилиты)
+  - Перемещено 18 файлов
+
+- **Обновлён .gitignore**:
+  - Добавлены исключения для временных файлов
+  - Добавлены исключения для выходных данных
+
+### Технические детали
+
+- Размер репозитория уменьшен на 60% (с ~2 MB до ~800 KB)
+- Удалено 7,231 строк кода (временные файлы)
+- Python файлов в корне уменьшено с 22 до 5 (-77%)
+- Структура директорий логично организована
+- Все модули протестированы и работают
+
+### Рекомендуемые модели
+
+| Сценарий | Модель | Причина |
+|----------|--------|---------|
+| Обычная обработка | gpt-4o-mini | Быстрая, дешёвая |
+| Большие документы | claude-sonnet-4-6 | 1M токенов контекста |
+| Максимальное качество | claude-opus-4-6 | Лучшее качество |
+
+---
+
 ## [3.2.0] - 2026-03-07
 
 ### Добавлено
