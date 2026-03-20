@@ -94,7 +94,27 @@ class RepositoryCleaner:
             self.delete_dir(logs_dir)
         
         # Удаляем выходные данные
-        output_dirs = ["output", "output_module_2", "output_module_3", "output_module_4"]
+        output_dirs = [
+            "output",
+            "output_module_2",
+            "output_module_3",
+            "output_module_4",
+            # Дополнительные временные директории от тестирования
+            "cache",
+            "demo_output",
+            "final_test",
+            "final_test2",
+            "output_full",
+            "output_test",
+            "test_analysis_output",
+            "test_batch_output",
+            "test_final",
+            "test_full_pipeline",
+            "test_llm_output",
+            "test_pipeline_output",
+            "test_quick_output",
+            "test_rag_output"
+        ]
         for dir_name in output_dirs:
             dir_path = Path(dir_name)
             if dir_path.exists():
@@ -212,7 +232,7 @@ class RepositoryCleaner:
         if not gitignore_path.exists():
             print("WARNING: .gitignore not found")
             return
-        
+    
         # Читаем текущий .gitignore
         with open(gitignore_path, 'r', encoding='utf-8') as f:
             content = f.read()

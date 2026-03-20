@@ -174,3 +174,13 @@ production_*.json
 production_*.yaml
 production_*.yml
 
+
+# Auto-added by cleanup script
+logs/
+output/
+output_module_2/
+output_module_3/
+output_module_4/
+*.html
+*.json.bak
+test_results*.json
