@@ -1,0 +1,9 @@
+{
+  "model_name": "text-embedding-3-small",
+  "embedding_dim": 1536,
+  "total_vectors": 19,
+  "db_type": "faiss",
+  "created_at": "2026-03-07T00:12:28.298532",
+  "index_path": "test_full_pipeline\\vector_db\\index.faiss",
+  "dataset_path": "test_full_pipeline\\vector_db\\dataset.json"
+}

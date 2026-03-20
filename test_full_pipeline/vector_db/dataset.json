@@ -1,0 +1,428 @@
+[
+  {
+    "text": "документ с грязным текстом для тестирования очистки",
+    "type": "heading",
+    "context": {},
+    "metadata": {
+      "source": "pdfs\\dirty_document.pdf",
+      "page_number": 1,
+      "chunk_id": 0,
+      "timestamp": "2026-03-07T00:12:07.059686",
+      "chunk_type": "heading",
+      "char_count": 51,
+      "word_count": 7,
+      "summary": "Заголовок о документе для тестирования очистки текста.",
+      "keywords": [
+        "документ",
+        "тестирование",
+        "очистка"
+      ],
+      "intent": "Обозначить тему документа.",
+      "source_file": "dirty_document.pdf"
+    }
+  },
+  {
+    "text": "вторая страница с мусором",
+    "type": "heading",
+    "context": {},
+    "metadata": {
+      "source": "pdfs\\dirty_document.pdf",
+      "page_number": 1,
+      "chunk_id": 1,
+      "timestamp": "2026-03-07T00:12:07.059686",
+      "chunk_type": "heading",
+      "char_count": 25,
+      "word_count": 4,
+      "summary": "Заголовок о второй странице с ненужной информацией.",
+      "keywords": [
+        "вторая страница",
+        "мусор",
+        "информация"
+      ],
+      "intent": "Указать на наличие ненужного текста.",
+      "source_file": "dirty_document.pdf"
+    }
+  },
+  {
+    "text": "удаление управляющих символов",
+    "type": "heading",
+    "context": {},
+    "metadata": {
+      "source": "pdfs\\dirty_document.pdf",
+      "page_number": 1,
+      "chunk_id": 2,
+      "timestamp": "2026-03-07T00:12:07.059686",
+      "chunk_type": "heading",
+      "char_count": 29,
+      "word_count": 3,
+      "summary": "Заголовок о процессе удаления управляющих символов.",
+      "keywords": [
+        "удаление",
+        "управляющие символы",
+        "процесс"
+      ],
+      "intent": "Подчеркнуть задачу удаления управляющих символов.",
+      "source_file": "dirty_document.pdf"
+    }
+  },
+  {
+    "text": "это документ содержит различные виды мусора для тестирования системы очистки текста. здесь много лишних пробелов между словами. в тексте используются сокращения: то есть, и так далее, так как, другие, пример, смотри важные даты: 2025-05-15, 2023-12-31, 2024-01-07.",
+    "type": "paragraph",
+    "context": {},
+    "metadata": {
+      "source": "pdfs\\dirty_document.pdf",
+      "page_number": 1,
+      "chunk_id": 3,
+      "timestamp": "2026-03-07T00:12:07.059686",
+      "chunk_type": "paragraph",
+      "char_count": 264,
+      "word_count": 36,
+      "summary": "Абзац описывает документ с ненужной информацией, лишними пробелами и сокращениями, а также содержит важные даты.",
+      "keywords": [
+        "мусор",
+        "пробелы",
+        "сокращения",
+        "даты"
+      ],
+      "intent": "Демонстрация примеров текста для очистки.",
+      "source_file": "dirty_document.pdf"
+    }
+  },
+  {
+    "text": "вопрос: что такое очистка текста? ответ: это процесс удаления мусора из текста. основные этапы очистки: - удаление html тегов - нормализация пробелов -",
+    "type": "paragraph",
+    "context": {},
+    "metadata": {
+      "source": "pdfs\\dirty_document.pdf",
+      "page_number": 1,
+      "chunk_id": 4,
+      "timestamp": "2026-03-07T00:12:07.059686",
+      "chunk_type": "paragraph",
+      "char_count": 151,
+      "word_count": 23,
+      "summary": "Абзац объясняет процесс очистки текста и перечисляет основные этапы, включая удаление HTML тегов и нормализацию пробелов.",
+      "keywords": [
+        "очистка текста",
+        "этапы",
+        "HTML теги",
+        "пробелы"
+      ],
+      "intent": "Объяснить процесс и этапы очистки текста.",
+      "source_file": "dirty_document.pdf"
+    }
+  },
+  {
+    "text": "основные компоненты",
+    "type": "heading",
+    "context": {},
+    "metadata": {
+      "source": "pdfs\\test_document.pdf",
+      "page_number": 1,
+      "chunk_id": 0,
+      "timestamp": "2026-03-07T00:12:11.938708",
+      "chunk_type": "heading",
+      "char_count": 19,
+      "word_count": 2,
+      "summary": "Заголовок, указывающий на основные компоненты.",
+      "keywords": [
+        "основные",
+        "компоненты"
+      ],
+      "intent": "Обозначить тему раздела.",
+      "source_file": "test_document.pdf"
+    }
+  },
+  {
+    "text": "часто задаваемые вопросы",
+    "type": "heading",
+    "context": {},
+    "metadata": {
+      "source": "pdfs\\test_document.pdf",
+      "page_number": 1,
+      "chunk_id": 1,
+      "timestamp": "2026-03-07T00:12:11.938708",
+      "chunk_type": "heading",
+      "char_count": 24,
+      "word_count": 3,
+      "summary": "Заголовок, связанный с часто задаваемыми вопросами.",
+      "keywords": [
+        "вопросы",
+        "часто задаваемые"
+      ],
+      "intent": "Обозначить раздел для ответов на популярные вопросы.",
+      "source_file": "test_document.pdf"
+    }
+  },
+  {
+    "text": "важные даты",
+    "type": "heading",
+    "context": {},
+    "metadata": {
+      "source": "pdfs\\test_document.pdf",
+      "page_number": 1,
+      "chunk_id": 2,
+      "timestamp": "2026-03-07T00:12:11.938708",
+      "chunk_type": "heading",
+      "char_count": 11,
+      "word_count": 2,
+      "summary": "Заголовок, посвящённый важным датам.",
+      "keywords": [
+        "важные",
+        "даты"
+      ],
+      "intent": "Указать на временные рамки или ключевые события.",
+      "source_file": "test_document.pdf"
+    }
+  },
+  {
+    "text": "введение в rag-системы rag (retrieval-augmented generation) — это подход в области искусственного интеллекта, который комбинирует возможности генеративных моделей с поиском релевантной информации.",
+    "type": "paragraph",
+    "context": {},
+    "metadata": {
+      "source": "pdfs\\test_document.pdf",
+      "page_number": 1,
+      "chunk_id": 3,
+      "timestamp": "2026-03-07T00:12:11.938708",
+      "chunk_type": "paragraph",
+      "char_count": 196,
+      "word_count": 22,
+      "summary": "Введение в RAG-системы, которые объединяют генеративные модели и поиск информации.",
+      "keywords": [
+        "RAG",
+        "искусственный интеллект",
+        "генеративные модели"
+      ],
+      "intent": "Объяснить концепцию RAG-систем.",
+      "source_file": "test_document.pdf"
+    }
+  },
+  {
+    "text": "вопрос: что такое эмбеддинг? ответ: эмбеддинг — это числовое представление текста в векторном пространстве. вопрос: какие модели используются для rag? ответ: наиболее популярны модели семейства gpt, claude и локальные модели вроде llama.",
+    "type": "paragraph",
+    "context": {},
+    "metadata": {
+      "source": "pdfs\\test_document.pdf",
+      "page_number": 1,
+      "chunk_id": 4,
+      "timestamp": "2026-03-07T00:12:11.938708",
+      "chunk_type": "paragraph",
+      "char_count": 237,
+      "word_count": 32,
+      "summary": "Ответы на вопросы об эмбеддингах и моделях для RAG.",
+      "keywords": [
+        "эмбеддинг",
+        "модели",
+        "GPT",
+        "Claude",
+        "LLaMA"
+      ],
+      "intent": "Дать базовые определения и примеры моделей.",
+      "source_file": "test_document.pdf"
+    }
+  },
+  {
+    "text": "разработка rag началась в 2020 году. первые коммерческие решения появились в 2022-2023 годах. конференция по rag состоится 2025-05-15.",
+    "type": "paragraph",
+    "context": {},
+    "metadata": {
+      "source": "pdfs\\test_document.pdf",
+      "page_number": 1,
+      "chunk_id": 5,
+      "timestamp": "2026-03-07T00:12:11.938708",
+      "chunk_type": "paragraph",
+      "char_count": 134,
+      "word_count": 18,
+      "summary": "История разработки RAG и информация о будущей конференции.",
+      "keywords": [
+        "разработка",
+        "2020",
+        "2022-2023",
+        "конференция",
+        "2025"
+      ],
+      "intent": "Описать временные этапы и анонсировать событие.",
+      "source_file": "test_document.pdf"
+    }
+  },
+  {
+    "text": "1. векторная база данных для хранения эмбеддингов 2. модель эмбеддингов для преобразования текста 3. генеративная модель (llm) для создания ответов 4. механизм поиска релевантной информации",
+    "type": "list",
+    "context": {
+      "items": 4
+    },
+    "metadata": {
+      "source": "pdfs\\test_document.pdf",
+      "page_number": 1,
+      "chunk_id": 6,
+      "timestamp": "2026-03-07T00:12:11.938708",
+      "chunk_type": "list",
+      "char_count": 189,
+      "word_count": 25,
+      "summary": "Список ключевых компонентов RAG-систем.",
+      "keywords": [
+        "векторная база",
+        "модель эмбеддингов",
+        "генеративная модель",
+        "поиск"
+      ],
+      "intent": "Перечислить основные элементы системы.",
+      "source_file": "test_document.pdf"
+    }
+  },
+  {
+    "text": "преимущества rag",
+    "type": "heading",
+    "context": {},
+    "metadata": {
+      "source": "pdfs\\test_document.pdf",
+      "page_number": 2,
+      "chunk_id": 7,
+      "timestamp": "2026-03-07T00:12:11.939336",
+      "chunk_type": "heading",
+      "char_count": 16,
+      "word_count": 2,
+      "summary": "Заголовок о преимуществах RAG.",
+      "keywords": [
+        "преимущества",
+        "RAG"
+      ],
+      "intent": "Обозначить тему преимуществ системы.",
+      "source_file": "test_document.pdf"
+    }
+  },
+  {
+    "text": "основные преимущества rag-систем:",
+    "type": "heading",
+    "context": {},
+    "metadata": {
+      "source": "pdfs\\test_document.pdf",
+      "page_number": 2,
+      "chunk_id": 8,
+      "timestamp": "2026-03-07T00:12:11.939336",
+      "chunk_type": "heading",
+      "char_count": 33,
+      "word_count": 3,
+      "summary": "Заголовок, уточняющий основные преимущества RAG-систем.",
+      "keywords": [
+        "основные",
+        "преимущества",
+        "RAG"
+      ],
+      "intent": "Представить ключевые выгоды системы.",
+      "source_file": "test_document.pdf"
+    }
+  },
+  {
+    "text": "в этой области часто используются сокращения: то есть (то есть), и так далее (и так далее), так как (так как).",
+    "type": "paragraph",
+    "context": {},
+    "metadata": {
+      "source": "pdfs\\test_document.pdf",
+      "page_number": 2,
+      "chunk_id": 9,
+      "timestamp": "2026-03-07T00:12:11.939336",
+      "chunk_type": "paragraph",
+      "char_count": 110,
+      "word_count": 20,
+      "summary": "Пример часто используемых сокращений в данной области.",
+      "keywords": [
+        "сокращения",
+        "то есть",
+        "и так далее",
+        "так как"
+      ],
+      "intent": "Объяснить использование сокращений.",
+      "source_file": "test_document.pdf"
+    }
+  },
+  {
+    "text": "- точность ответов за счёт использования актуальной информации - возможность работы с собственными данными компании - снижение галлюцинаций модели - прозрачность источников информации",
+    "type": "list",
+    "context": {
+      "items": 4
+    },
+    "metadata": {
+      "source": "pdfs\\test_document.pdf",
+      "page_number": 2,
+      "chunk_id": 0,
+      "timestamp": "2026-03-07T00:12:11.939336",
+      "chunk_type": "list",
+      "char_count": 183,
+      "word_count": 23,
+      "summary": "Перечислены преимущества, такие как точность ответов, работа с данными компании, снижение ошибок модели и прозрачность источников.",
+      "keywords": [
+        "точность",
+        "данные компании",
+        "прозрачность"
+      ],
+      "intent": "описание преимуществ использования подхода",
+      "source_file": "test_document.pdf"
+    }
+  },
+  {
+    "text": "документ с очень грязным текстом",
+    "type": "heading",
+    "context": {},
+    "metadata": {
+      "source": "pdfs\\very_dirty_document.pdf",
+      "page_number": 1,
+      "chunk_id": 0,
+      "timestamp": "2026-03-07T00:12:23.746180",
+      "chunk_type": "heading",
+      "char_count": 32,
+      "word_count": 5,
+      "summary": "Заголовок указывает на документ с неструктурированным содержанием.",
+      "keywords": [
+        "документ",
+        "грязный текст",
+        "заголовок"
+      ],
+      "intent": "описание содержания документа",
+      "source_file": "very_dirty_document.pdf"
+    }
+  },
+  {
+    "text": "это текст с множественными пробелами.",
+    "type": "paragraph",
+    "context": {},
+    "metadata": {
+      "source": "pdfs\\very_dirty_document.pdf",
+      "page_number": 1,
+      "chunk_id": 1,
+      "timestamp": "2026-03-07T00:12:23.746180",
+      "chunk_type": "paragraph",
+      "char_count": 37,
+      "word_count": 5,
+      "summary": "Текст содержит избыточные пробелы, что затрудняет чтение.",
+      "keywords": [
+        "текст",
+        "пробелы",
+        "чтение"
+      ],
+      "intent": "описание проблемы форматирования текста",
+      "source_file": "very_dirty_document.pdf"
+    }
+  },
+  {
+    "text": "используются сокращения: то есть, и так далее, так как даты: 2025-05-15, 2023-12-31, 2024-01-07.",
+    "type": "paragraph",
+    "context": {},
+    "metadata": {
+      "source": "pdfs\\very_dirty_document.pdf",
+      "page_number": 2,
+      "chunk_id": 2,
+      "timestamp": "2026-03-07T00:12:23.746721",
+      "chunk_type": "paragraph",
+      "char_count": 96,
+      "word_count": 13,
+      "summary": "Текст содержит сокращения и даты, что может быть важно для контекста.",
+      "keywords": [
+        "сокращения",
+        "даты",
+        "контекст"
+      ],
+      "intent": "указание на использование сокращений и дат",
+      "source_file": "very_dirty_document.pdf"
+    }
+  }
+]

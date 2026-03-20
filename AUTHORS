@@ -5,7 +5,7 @@
 **Line_GV**  
 - Telegram: [@Line_GV](https://t.me/Line_GV)
 - Роль: Разработчик, архитектор проекта
-- Версия: 2.3.0 (2026-02-18)
+- Версия: 3.1.0 (2026-03-07)
 
 ## Вклад
 
@@ -15,6 +15,20 @@
 - Модуль 3: Гибридный чанкинг и метаданные
 - Модуль 4: Векторизация и векторная БД
 - Модуль 5: Создание RAG-баз данных
+- RAG Engine v3.0: Единый интерфейс RAG
+- Метрики и мониторинг (v3.1.0)
+- Async/Parallel Processing (v3.1.0)
+- 23 LLM модели (OpenAI, Anthropic, Google)
+- Advanced RAG: Re-ranking, HyDE, Fusion, Self-RAG
+- Кэширование эмбеддингов, Query rewriting, Answer с цитатами
+
+## Технологии
+
+- Python 3.8+
+- OpenAI API (embeddings + LLM)
+- FAISS (векторная БД)
+- Tkinter (GUI)
+- Anthropic Claude, Google Gemini
 
 ## Лицензия
 

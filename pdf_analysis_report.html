@@ -1,0 +1,963 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Анализ PDF - Squeezer</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            color: #eee;
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container { max-width: 1200px; margin: 0 auto; }
+        
+        h1 {
+            text-align: center;
+            color: #00d4ff;
+            margin-bottom: 10px;
+            font-size: 2.5em;
+        }
+        .subtitle {
+            text-align: center;
+            color: #888;
+            margin-bottom: 30px;
+        }
+        
+        .card {
+            background: rgba(255,255,255,0.05);
+            border-radius: 15px;
+            padding: 25px;
+            margin-bottom: 20px;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+        
+        .file-header {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+        .file-icon {
+            font-size: 40px;
+        }
+        .file-name {
+            font-size: 1.5em;
+            color: #fff;
+        }
+        
+        .metrics {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        .metric {
+            background: rgba(0,212,255,0.1);
+            border-radius: 10px;
+            padding: 15px;
+            text-align: center;
+        }
+        .metric-value {
+            font-size: 2em;
+            color: #00d4ff;
+            font-weight: bold;
+        }
+        .metric-label {
+            color: #888;
+            font-size: 0.9em;
+        }
+        
+        .type-badge {
+            display: inline-block;
+            padding: 8px 20px;
+            border-radius: 20px;
+            font-weight: bold;
+            text-transform: uppercase;
+            font-size: 0.9em;
+        }
+        .type-faq { background: #ff6b6b; color: #fff; }
+        .type-textbook { background: #4ecdc4; color: #000; }
+        .type-article { background: #45b7d1; color: #fff; }
+        .type-report { background: #96ceb4; color: #000; }
+        .type-book { background: #ffeaa7; color: #000; }
+        
+        .recommendations {
+            background: linear-gradient(135deg, rgba(0,212,255,0.1) 0%, rgba(0,255,136,0.1) 100%);
+            border-radius: 15px;
+            padding: 20px;
+            margin-top: 20px;
+        }
+        .rec-title {
+            color: #00ff88;
+            font-size: 1.3em;
+            margin-bottom: 15px;
+        }
+        
+        .rec-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+        }
+        .rec-item {
+            background: rgba(0,0,0,0.3);
+            border-radius: 10px;
+            padding: 15px;
+        }
+        .rec-label {
+            color: #888;
+            font-size: 0.85em;
+            margin-bottom: 5px;
+        }
+        .rec-value {
+            color: #00ff88;
+            font-size: 1.2em;
+            font-weight: bold;
+        }
+        .rec-default {
+            color: #666;
+            font-size: 0.9em;
+            margin-top: 5px;
+        }
+        
+        .rationale {
+            margin-top: 20px;
+            padding: 15px;
+            background: rgba(255,107,107,0.1);
+            border-radius: 10px;
+        }
+        .rationale-title {
+            color: #ff6b6b;
+            margin-bottom: 10px;
+        }
+        .rationale-item {
+            margin: 8px 0;
+            padding-left: 20px;
+            position: relative;
+        }
+        .rationale-item:before {
+            content: "→";
+            position: absolute;
+            left: 0;
+            color: #ff6b6b;
+        }
+        
+        .comparison {
+            margin-top: 30px;
+        }
+        .comparison-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        .comparison-table th {
+            background: rgba(0,212,255,0.2);
+            padding: 15px;
+            text-align: left;
+            color: #00d4ff;
+        }
+        .comparison-table td {
+            padding: 12px 15px;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+        .comparison-table tr:hover {
+            background: rgba(255,255,255,0.05);
+        }
+        .badge {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 5px;
+            font-size: 0.85em;
+        }
+        .badge-ok { background: #00ff88; color: #000; }
+        .badge-diff { background: #ffeaa7; color: #000; }
+        
+        .summary {
+            text-align: center;
+            margin-top: 40px;
+            padding: 30px;
+            background: linear-gradient(135deg, rgba(0,212,255,0.2) 0%, rgba(0,255,136,0.2) 100%);
+            border-radius: 15px;
+        }
+        .summary h2 { color: #00d4ff; margin-bottom: 15px; }
+        .summary-stats {
+            display: flex;
+            justify-content: center;
+            gap: 40px;
+            flex-wrap: wrap;
+        }
+        .stat {
+            text-align: center;
+        }
+        .stat-value {
+            font-size: 2.5em;
+            color: #00ff88;
+            font-weight: bold;
+        }
+        .stat-label { color: #888; }
+        
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔬 Squeezer PDF Analyzer</h1>
+        <p class="subtitle">Отчет о предварительном анализе документов | 2026-03-07 00:50:10</p>
+
+        <div class="card">
+            <div class="file-header">
+                <span class="file-icon">📄</span>
+                <span class="file-name">dirty_document.pdf</span>
+                <span class="type-badge type-faq">faq</span>
+            </div>
+            
+            <div class="metrics">
+                <div class="metric">
+                    <div class="metric-value">1</div>
+                    <div class="metric-label">Страниц</div>
+                </div>
+                <div class="metric">
+                    <div class="metric-value">688</div>
+                    <div class="metric-label">Символов/стр</div>
+                </div>
+                <div class="metric">
+                    <div class="metric-value">low</div>
+                    <div class="metric-label">Плотность</div>
+                </div>
+                <div class="metric">
+                    <div class="metric-value">simple</div>
+                    <div class="metric-label">Сложность</div>
+                </div>
+                <div class="metric">
+                    <div class="metric-value">8</div>
+                    <div class="metric-label">Заголовков</div>
+                </div>
+                <div class="metric">
+                    <div class="metric-value">1</div>
+                    <div class="metric-label">Абзацев</div>
+                </div>
+            </div>
+            
+            <div class="recommendations">
+                <div class="rec-title">🎯 Рекомендации по обработке</div>
+                <div class="rec-grid">
+                    <div class="rec-item">
+                        <div class="rec-label">Размер чанка</div>
+                        <div class="rec-value">250</div>
+                        <div class="rec-default">Дефолт: 500</div>
+                    </div>
+                    <div class="rec-item">
+                        <div class="rec-label">Overlap</div>
+                        <div class="rec-value">30</div>
+                        <div class="rec-default">Дефолт: 50</div>
+                    </div>
+                    <div class="rec-item">
+                        <div class="rec-label">Стратегия</div>
+                        <div class="rec-value">by_questions</div>
+                    </div>
+                    <div class="rec-item">
+                        <div class="rec-label">OCR</div>
+                        <div class="rec-value">Нет</div>
+                    </div>
+                    <div class="rec-item">
+                        <div class="rec-label">LLM</div>
+                        <div class="rec-value">Да</div>
+                    </div>
+                </div>
+            </div>
+        <div class="rationale"><div class="rationale-title">💡 Почему такие настройки:</div><div class="rationale-item">FAQ: smaller chunks для точных ответов</div><div class="rationale-item">Низкая плотность: уменьшаем чанки</div></div></div>
+        <div class="card">
+            <div class="file-header">
+                <span class="file-icon">📄</span>
+                <span class="file-name">obshchestvoznaniye-oge.pdf</span>
+                <span class="type-badge type-textbook">textbook</span>
+            </div>
+            
+            <div class="metrics">
+                <div class="metric">
+                    <div class="metric-value">18</div>
+                    <div class="metric-label">Страниц</div>
+                </div>
+                <div class="metric">
+                    <div class="metric-value">1680</div>
+                    <div class="metric-label">Символов/стр</div>
+                </div>
+                <div class="metric">
+                    <div class="metric-value">medium</div>
+                    <div class="metric-label">Плотность</div>
+                </div>
+                <div class="metric">
+                    <div class="metric-value">medium</div>
+                    <div class="metric-label">Сложность</div>
+                </div>
+                <div class="metric">
+                    <div class="metric-value">8</div>
+                    <div class="metric-label">Заголовков</div>
+                </div>
+                <div class="metric">
+                    <div class="metric-value">5</div>
+                    <div class="metric-label">Абзацев</div>
+                </div>
+            </div>
+            
+            <div class="recommendations">
+                <div class="rec-title">🎯 Рекомендации по обработке</div>
+                <div class="rec-grid">
+                    <div class="rec-item">
+                        <div class="rec-label">Размер чанка</div>
+                        <div class="rec-value">600</div>
+                        <div class="rec-default">Дефолт: 500</div>
+                    </div>
+                    <div class="rec-item">
+                        <div class="rec-label">Overlap</div>
+                        <div class="rec-value">80</div>
+                        <div class="rec-default">Дефолт: 50</div>
+                    </div>
+                    <div class="rec-item">
+                        <div class="rec-label">Стратегия</div>
+                        <div class="rec-value">by_headings</div>
+                    </div>
+                    <div class="rec-item">
+                        <div class="rec-label">OCR</div>
+                        <div class="rec-value">Нет</div>
+                    </div>
+                    <div class="rec-item">
+                        <div class="rec-label">LLM</div>
+                        <div class="rec-value">Да</div>
+                    </div>
+                </div>
+            </div>
+        <div class="rationale"><div class="rationale-title">💡 Почему такие настройки:</div><div class="rationale-item">Учебник: larger chunks для сохранения контекста глав</div><div class="rationale-item">Сложный документ: LLM для качественных метаданных</div></div></div>
+        <div class="card">
+            <div class="file-header">
+                <span class="file-icon">📄</span>
+                <span class="file-name">obshgia2024.pdf</span>
+                <span class="type-badge type-textbook">textbook</span>
+            </div>
+            
+            <div class="metrics">
+                <div class="metric">
+                    <div class="metric-value">12</div>
+                    <div class="metric-label">Страниц</div>
+                </div>
+                <div class="metric">
+                    <div class="metric-value">2586</div>
+                    <div class="metric-label">Символов/стр</div>
+                </div>
+                <div class="metric">
+                    <div class="metric-value">medium</div>
+                    <div class="metric-label">Плотность</div>
+                </div>
+                <div class="metric">
+                    <div class="metric-value">complex</div>
+                    <div class="metric-label">Сложность</div>
+                </div>
+                <div class="metric">
+                    <div class="metric-value">30</div>
+                    <div class="metric-label">Заголовков</div>
+                </div>
+                <div class="metric">
+                    <div class="metric-value">5</div>
+                    <div class="metric-label">Абзацев</div>
+                </div>
+            </div>
+            
+            <div class="recommendations">
+                <div class="rec-title">🎯 Рекомендации по обработке</div>
+                <div class="rec-grid">
+                    <div class="rec-item">
+                        <div class="rec-label">Размер чанка</div>
+                        <div class="rec-value">600</div>
+                        <div class="rec-default">Дефолт: 500</div>
+                    </div>
+                    <div class="rec-item">
+                        <div class="rec-label">Overlap</div>
+                        <div class="rec-value">80</div>
+                        <div class="rec-default">Дефолт: 50</div>
+                    </div>
+                    <div class="rec-item">
+                        <div class="rec-label">Стратегия</div>
+                        <div class="rec-value">by_headings</div>
+                    </div>
+                    <div class="rec-item">
+                        <div class="rec-label">OCR</div>
+                        <div class="rec-value">Нет</div>
+                    </div>
+                    <div class="rec-item">
+                        <div class="rec-label">LLM</div>
+                        <div class="rec-value">Да</div>
+                    </div>
+                </div>
+            </div>
+        <div class="rationale"><div class="rationale-title">💡 Почему такие настройки:</div><div class="rationale-item">Учебник: larger chunks для сохранения контекста глав</div><div class="rationale-item">Сложный документ: LLM для качественных метаданных</div></div></div>
+        <div class="card">
+            <div class="file-header">
+                <span class="file-icon">📄</span>
+                <span class="file-name">OGE_Obshchestvoznanie_Novyi_polnyi_spravochnik_dlia_podgotovki_k.pdf</span>
+                <span class="type-badge type-textbook">textbook</span>
+            </div>
+            
+            <div class="metrics">
+                <div class="metric">
+                    <div class="metric-value">28</div>
+                    <div class="metric-label">Страниц</div>
+                </div>
+                <div class="metric">
+                    <div class="metric-value">2286</div>
+                    <div class="metric-label">Символов/стр</div>
+                </div>
+                <div class="metric">
+                    <div class="metric-value">medium</div>
+                    <div class="metric-label">Плотность</div>
+                </div>
+                <div class="metric">
+                    <div class="metric-value">simple</div>
+                    <div class="metric-label">Сложность</div>
+                </div>
+                <div class="metric">
+                    <div class="metric-value">8</div>
+                    <div class="metric-label">Заголовков</div>
+                </div>
+                <div class="metric">
+                    <div class="metric-value">4</div>
+                    <div class="metric-label">Абзацев</div>
+                </div>
+            </div>
+            
+            <div class="recommendations">
+                <div class="rec-title">🎯 Рекомендации по обработке</div>
+                <div class="rec-grid">
+                    <div class="rec-item">
+                        <div class="rec-label">Размер чанка</div>
+                        <div class="rec-value">600</div>
+                        <div class="rec-default">Дефолт: 500</div>
+                    </div>
+                    <div class="rec-item">
+                        <div class="rec-label">Overlap</div>
+                        <div class="rec-value">80</div>
+                        <div class="rec-default">Дефолт: 50</div>
+                    </div>
+                    <div class="rec-item">
+                        <div class="rec-label">Стратегия</div>
+                        <div class="rec-value">by_headings</div>
+                    </div>
+                    <div class="rec-item">
+                        <div class="rec-label">OCR</div>
+                        <div class="rec-value">Да</div>
+                    </div>
+                    <div class="rec-item">
+                        <div class="rec-label">LLM</div>
+                        <div class="rec-value">Да</div>
+                    </div>
+                </div>
+            </div>
+        <div class="rationale"><div class="rationale-title">💡 Почему такие настройки:</div><div class="rationale-item">Учебник: larger chunks для сохранения контекста глав</div><div class="rationale-item">OCR нужен для 1 страниц</div><div class="rationale-item">Сложный документ: LLM для качественных метаданных</div></div></div>
+        <div class="card">
+            <div class="file-header">
+                <span class="file-icon">📄</span>
+                <span class="file-name">polzovatelskoe-soglashenie-gigaсode-1.02.pdf</span>
+                <span class="type-badge type-article">article</span>
+            </div>
+            
+            <div class="metrics">
+                <div class="metric">
+                    <div class="metric-value">12</div>
+                    <div class="metric-label">Страниц</div>
+                </div>
+                <div class="metric">
+                    <div class="metric-value">3300</div>
+                    <div class="metric-label">Символов/стр</div>
+                </div>
+                <div class="metric">
+                    <div class="metric-value">high</div>
+                    <div class="metric-label">Плотность</div>
+                </div>
+                <div class="metric">
+                    <div class="metric-value">medium</div>
+                    <div class="metric-label">Сложность</div>
+                </div>
+                <div class="metric">
+                    <div class="metric-value">0</div>
+                    <div class="metric-label">Заголовков</div>
+                </div>
+                <div class="metric">
+                    <div class="metric-value">5</div>
+                    <div class="metric-label">Абзацев</div>
+                </div>
+            </div>
+            
+            <div class="recommendations">
+                <div class="rec-title">🎯 Рекомендации по обработке</div>
+                <div class="rec-grid">
+                    <div class="rec-item">
+                        <div class="rec-label">Размер чанка</div>
+                        <div class="rec-value">500</div>
+                        <div class="rec-default">Дефолт: 500</div>
+                    </div>
+                    <div class="rec-item">
+                        <div class="rec-label">Overlap</div>
+                        <div class="rec-value">50</div>
+                        <div class="rec-default">Дефолт: 50</div>
+                    </div>
+                    <div class="rec-item">
+                        <div class="rec-label">Стратегия</div>
+                        <div class="rec-value">by_paragraphs</div>
+                    </div>
+                    <div class="rec-item">
+                        <div class="rec-label">OCR</div>
+                        <div class="rec-value">Нет</div>
+                    </div>
+                    <div class="rec-item">
+                        <div class="rec-label">LLM</div>
+                        <div class="rec-value">Да</div>
+                    </div>
+                </div>
+            </div>
+        <div class="rationale"><div class="rationale-title">💡 Почему такие настройки:</div><div class="rationale-item">Статья: средние чанки по абзацам</div><div class="rationale-item">Высокая плотность: увеличиваем чанки</div></div></div>
+        <div class="card">
+            <div class="file-header">
+                <span class="file-icon">📄</span>
+                <span class="file-name">test_document.pdf</span>
+                <span class="type-badge type-faq">faq</span>
+            </div>
+            
+            <div class="metrics">
+                <div class="metric">
+                    <div class="metric-value">2</div>
+                    <div class="metric-label">Страниц</div>
+                </div>
+                <div class="metric">
+                    <div class="metric-value">576</div>
+                    <div class="metric-label">Символов/стр</div>
+                </div>
+                <div class="metric">
+                    <div class="metric-value">low</div>
+                    <div class="metric-label">Плотность</div>
+                </div>
+                <div class="metric">
+                    <div class="metric-value">medium</div>
+                    <div class="metric-label">Сложность</div>
+                </div>
+                <div class="metric">
+                    <div class="metric-value">7</div>
+                    <div class="metric-label">Заголовков</div>
+                </div>
+                <div class="metric">
+                    <div class="metric-value">2</div>
+                    <div class="metric-label">Абзацев</div>
+                </div>
+            </div>
+            
+            <div class="recommendations">
+                <div class="rec-title">🎯 Рекомендации по обработке</div>
+                <div class="rec-grid">
+                    <div class="rec-item">
+                        <div class="rec-label">Размер чанка</div>
+                        <div class="rec-value">250</div>
+                        <div class="rec-default">Дефолт: 500</div>
+                    </div>
+                    <div class="rec-item">
+                        <div class="rec-label">Overlap</div>
+                        <div class="rec-value">30</div>
+                        <div class="rec-default">Дефолт: 50</div>
+                    </div>
+                    <div class="rec-item">
+                        <div class="rec-label">Стратегия</div>
+                        <div class="rec-value">by_questions</div>
+                    </div>
+                    <div class="rec-item">
+                        <div class="rec-label">OCR</div>
+                        <div class="rec-value">Нет</div>
+                    </div>
+                    <div class="rec-item">
+                        <div class="rec-label">LLM</div>
+                        <div class="rec-value">Да</div>
+                    </div>
+                </div>
+            </div>
+        <div class="rationale"><div class="rationale-title">💡 Почему такие настройки:</div><div class="rationale-item">FAQ: smaller chunks для точных ответов</div><div class="rationale-item">Низкая плотность: уменьшаем чанки</div></div></div>
+        <div class="card">
+            <div class="file-header">
+                <span class="file-icon">📄</span>
+                <span class="file-name">very_dirty_document.pdf</span>
+                <span class="type-badge type-faq">faq</span>
+            </div>
+            
+            <div class="metrics">
+                <div class="metric">
+                    <div class="metric-value">2</div>
+                    <div class="metric-label">Страниц</div>
+                </div>
+                <div class="metric">
+                    <div class="metric-value">160</div>
+                    <div class="metric-label">Символов/стр</div>
+                </div>
+                <div class="metric">
+                    <div class="metric-value">low</div>
+                    <div class="metric-label">Плотность</div>
+                </div>
+                <div class="metric">
+                    <div class="metric-value">simple</div>
+                    <div class="metric-label">Сложность</div>
+                </div>
+                <div class="metric">
+                    <div class="metric-value">7</div>
+                    <div class="metric-label">Заголовков</div>
+                </div>
+                <div class="metric">
+                    <div class="metric-value">2</div>
+                    <div class="metric-label">Абзацев</div>
+                </div>
+            </div>
+            
+            <div class="recommendations">
+                <div class="rec-title">🎯 Рекомендации по обработке</div>
+                <div class="rec-grid">
+                    <div class="rec-item">
+                        <div class="rec-label">Размер чанка</div>
+                        <div class="rec-value">250</div>
+                        <div class="rec-default">Дефолт: 500</div>
+                    </div>
+                    <div class="rec-item">
+                        <div class="rec-label">Overlap</div>
+                        <div class="rec-value">30</div>
+                        <div class="rec-default">Дефолт: 50</div>
+                    </div>
+                    <div class="rec-item">
+                        <div class="rec-label">Стратегия</div>
+                        <div class="rec-value">by_questions</div>
+                    </div>
+                    <div class="rec-item">
+                        <div class="rec-label">OCR</div>
+                        <div class="rec-value">Нет</div>
+                    </div>
+                    <div class="rec-item">
+                        <div class="rec-label">LLM</div>
+                        <div class="rec-value">Да</div>
+                    </div>
+                </div>
+            </div>
+        <div class="rationale"><div class="rationale-title">💡 Почему такие настройки:</div><div class="rationale-item">FAQ: smaller chunks для точных ответов</div><div class="rationale-item">Низкая плотность: уменьшаем чанки</div></div></div>
+        <div class="card">
+            <div class="file-header">
+                <span class="file-icon">📄</span>
+                <span class="file-name">Кара_А_П_Пособие_ОГЭ_обществознание.pdf</span>
+                <span class="type-badge type-textbook">textbook</span>
+            </div>
+            
+            <div class="metrics">
+                <div class="metric">
+                    <div class="metric-value">208</div>
+                    <div class="metric-label">Страниц</div>
+                </div>
+                <div class="metric">
+                    <div class="metric-value">1514</div>
+                    <div class="metric-label">Символов/стр</div>
+                </div>
+                <div class="metric">
+                    <div class="metric-value">medium</div>
+                    <div class="metric-label">Плотность</div>
+                </div>
+                <div class="metric">
+                    <div class="metric-value">medium</div>
+                    <div class="metric-label">Сложность</div>
+                </div>
+                <div class="metric">
+                    <div class="metric-value">7</div>
+                    <div class="metric-label">Заголовков</div>
+                </div>
+                <div class="metric">
+                    <div class="metric-value">5</div>
+                    <div class="metric-label">Абзацев</div>
+                </div>
+            </div>
+            
+            <div class="recommendations">
+                <div class="rec-title">🎯 Рекомендации по обработке</div>
+                <div class="rec-grid">
+                    <div class="rec-item">
+                        <div class="rec-label">Размер чанка</div>
+                        <div class="rec-value">600</div>
+                        <div class="rec-default">Дефолт: 500</div>
+                    </div>
+                    <div class="rec-item">
+                        <div class="rec-label">Overlap</div>
+                        <div class="rec-value">80</div>
+                        <div class="rec-default">Дефолт: 50</div>
+                    </div>
+                    <div class="rec-item">
+                        <div class="rec-label">Стратегия</div>
+                        <div class="rec-value">by_headings</div>
+                    </div>
+                    <div class="rec-item">
+                        <div class="rec-label">OCR</div>
+                        <div class="rec-value">Нет</div>
+                    </div>
+                    <div class="rec-item">
+                        <div class="rec-label">LLM</div>
+                        <div class="rec-value">Да</div>
+                    </div>
+                </div>
+            </div>
+        <div class="rationale"><div class="rationale-title">💡 Почему такие настройки:</div><div class="rationale-item">Учебник: larger chunks для сохранения контекста глав</div><div class="rationale-item">Сложный документ: LLM для качественных метаданных</div></div></div>
+        <div class="card">
+            <div class="file-header">
+                <span class="file-icon">📄</span>
+                <span class="file-name">Китайские нейросети кто есть кто и зачем они тебе.pdf</span>
+                <span class="type-badge type-textbook">textbook</span>
+            </div>
+            
+            <div class="metrics">
+                <div class="metric">
+                    <div class="metric-value">15</div>
+                    <div class="metric-label">Страниц</div>
+                </div>
+                <div class="metric">
+                    <div class="metric-value">793</div>
+                    <div class="metric-label">Символов/стр</div>
+                </div>
+                <div class="metric">
+                    <div class="metric-value">low</div>
+                    <div class="metric-label">Плотность</div>
+                </div>
+                <div class="metric">
+                    <div class="metric-value">complex</div>
+                    <div class="metric-label">Сложность</div>
+                </div>
+                <div class="metric">
+                    <div class="metric-value">36</div>
+                    <div class="metric-label">Заголовков</div>
+                </div>
+                <div class="metric">
+                    <div class="metric-value">4</div>
+                    <div class="metric-label">Абзацев</div>
+                </div>
+            </div>
+            
+            <div class="recommendations">
+                <div class="rec-title">🎯 Рекомендации по обработке</div>
+                <div class="rec-grid">
+                    <div class="rec-item">
+                        <div class="rec-label">Размер чанка</div>
+                        <div class="rec-value">300</div>
+                        <div class="rec-default">Дефолт: 500</div>
+                    </div>
+                    <div class="rec-item">
+                        <div class="rec-label">Overlap</div>
+                        <div class="rec-value">80</div>
+                        <div class="rec-default">Дефолт: 50</div>
+                    </div>
+                    <div class="rec-item">
+                        <div class="rec-label">Стратегия</div>
+                        <div class="rec-value">by_headings</div>
+                    </div>
+                    <div class="rec-item">
+                        <div class="rec-label">OCR</div>
+                        <div class="rec-value">Да</div>
+                    </div>
+                    <div class="rec-item">
+                        <div class="rec-label">LLM</div>
+                        <div class="rec-value">Да</div>
+                    </div>
+                </div>
+            </div>
+        <div class="rationale"><div class="rationale-title">💡 Почему такие настройки:</div><div class="rationale-item">Учебник: larger chunks для сохранения контекста глав</div><div class="rationale-item">Низкая плотность: уменьшаем чанки</div><div class="rationale-item">OCR нужен для 1 страниц</div><div class="rationale-item">Сложный документ: LLM для качественных метаданных</div></div></div>
+        <div class="card">
+            <div class="file-header">
+                <span class="file-icon">📄</span>
+                <span class="file-name">Структурная схема подключения АКЭС на стороне 0,4 кВ после трансформатора.pdf</span>
+                <span class="type-badge type-textbook">textbook</span>
+            </div>
+            
+            <div class="metrics">
+                <div class="metric">
+                    <div class="metric-value">1</div>
+                    <div class="metric-label">Страниц</div>
+                </div>
+                <div class="metric">
+                    <div class="metric-value">593</div>
+                    <div class="metric-label">Символов/стр</div>
+                </div>
+                <div class="metric">
+                    <div class="metric-value">low</div>
+                    <div class="metric-label">Плотность</div>
+                </div>
+                <div class="metric">
+                    <div class="metric-value">medium</div>
+                    <div class="metric-label">Сложность</div>
+                </div>
+                <div class="metric">
+                    <div class="metric-value">1</div>
+                    <div class="metric-label">Заголовков</div>
+                </div>
+                <div class="metric">
+                    <div class="metric-value">1</div>
+                    <div class="metric-label">Абзацев</div>
+                </div>
+            </div>
+            
+            <div class="recommendations">
+                <div class="rec-title">🎯 Рекомендации по обработке</div>
+                <div class="rec-grid">
+                    <div class="rec-item">
+                        <div class="rec-label">Размер чанка</div>
+                        <div class="rec-value">300</div>
+                        <div class="rec-default">Дефолт: 500</div>
+                    </div>
+                    <div class="rec-item">
+                        <div class="rec-label">Overlap</div>
+                        <div class="rec-value">80</div>
+                        <div class="rec-default">Дефолт: 50</div>
+                    </div>
+                    <div class="rec-item">
+                        <div class="rec-label">Стратегия</div>
+                        <div class="rec-value">by_headings</div>
+                    </div>
+                    <div class="rec-item">
+                        <div class="rec-label">OCR</div>
+                        <div class="rec-value">Нет</div>
+                    </div>
+                    <div class="rec-item">
+                        <div class="rec-label">LLM</div>
+                        <div class="rec-value">Да</div>
+                    </div>
+                </div>
+            </div>
+        <div class="rationale"><div class="rationale-title">💡 Почему такие настройки:</div><div class="rationale-item">Учебник: larger chunks для сохранения контекста глав</div><div class="rationale-item">Низкая плотность: уменьшаем чанки</div><div class="rationale-item">Сложный документ: LLM для качественных метаданных</div></div></div>
+        <div class="card comparison">
+            <h2>📊 Сравнение рекомендаций</h2>
+            <table class="comparison-table">
+                <thead>
+                    <tr>
+                        <th>Файл</th>
+                        <th>Тип</th>
+                        <th>Рекоменд. chunk</th>
+                        <th>Дефолт chunk</th>
+                        <th>Изменение</th>
+                        <th>Эффект</th>
+                    </tr>
+                </thead>
+                <tbody>
+    
+                    <tr>
+                        <td>dirty_document.pdf</td>
+                        <td><span class="type-badge type-faq">faq</span></td>
+                        <td><strong>250</strong></td>
+                        <td>500</td>
+                        <td>↓</td>
+                        <td><span class="badge badge-ok">Оптимально</span></td>
+                    </tr>
+        
+                    <tr>
+                        <td>obshchestvoznaniye-oge.pdf</td>
+                        <td><span class="type-badge type-textbook">textbook</span></td>
+                        <td><strong>600</strong></td>
+                        <td>500</td>
+                        <td>↑</td>
+                        <td><span class="badge badge-ok">Больше контекста</span></td>
+                    </tr>
+        
+                    <tr>
+                        <td>obshgia2024.pdf</td>
+                        <td><span class="type-badge type-textbook">textbook</span></td>
+                        <td><strong>600</strong></td>
+                        <td>500</td>
+                        <td>↑</td>
+                        <td><span class="badge badge-ok">Больше контекста</span></td>
+                    </tr>
+        
+                    <tr>
+                        <td>OGE_Obshchestvoznanie_Novyi_polnyi_spravochnik_dlia_podgotovki_k.pdf</td>
+                        <td><span class="type-badge type-textbook">textbook</span></td>
+                        <td><strong>600</strong></td>
+                        <td>500</td>
+                        <td>↑</td>
+                        <td><span class="badge badge-ok">Больше контекста</span></td>
+                    </tr>
+        
+                    <tr>
+                        <td>polzovatelskoe-soglashenie-gigaсode-1.02.pdf</td>
+                        <td><span class="type-badge type-article">article</span></td>
+                        <td><strong>500</strong></td>
+                        <td>500</td>
+                        <td>=</td>
+                        <td><span class="badge badge-diff">Без изменений</span></td>
+                    </tr>
+        
+                    <tr>
+                        <td>test_document.pdf</td>
+                        <td><span class="type-badge type-faq">faq</span></td>
+                        <td><strong>250</strong></td>
+                        <td>500</td>
+                        <td>↓</td>
+                        <td><span class="badge badge-ok">Оптимально</span></td>
+                    </tr>
+        
+                    <tr>
+                        <td>very_dirty_document.pdf</td>
+                        <td><span class="type-badge type-faq">faq</span></td>
+                        <td><strong>250</strong></td>
+                        <td>500</td>
+                        <td>↓</td>
+                        <td><span class="badge badge-ok">Оптимально</span></td>
+                    </tr>
+        
+                    <tr>
+                        <td>Кара_А_П_Пособие_ОГЭ_обществознание.pdf</td>
+                        <td><span class="type-badge type-textbook">textbook</span></td>
+                        <td><strong>600</strong></td>
+                        <td>500</td>
+                        <td>↑</td>
+                        <td><span class="badge badge-ok">Больше контекста</span></td>
+                    </tr>
+        
+                    <tr>
+                        <td>Китайские нейросети кто есть кто и зачем они тебе.pdf</td>
+                        <td><span class="type-badge type-textbook">textbook</span></td>
+                        <td><strong>300</strong></td>
+                        <td>500</td>
+                        <td>↓</td>
+                        <td><span class="badge badge-ok">Оптимально</span></td>
+                    </tr>
+        
+                    <tr>
+                        <td>Структурная схема подключения АКЭС на стороне 0,4 кВ после трансформатора.pdf</td>
+                        <td><span class="type-badge type-textbook">textbook</span></td>
+                        <td><strong>300</strong></td>
+                        <td>500</td>
+                        <td>↓</td>
+                        <td><span class="badge badge-ok">Оптимально</span></td>
+                    </tr>
+        
+                </tbody>
+            </table>
+        </div>
+    
+        <div class="summary">
+            <h2>📈 Итоги анализа</h2>
+            <div class="summary-stats">
+                <div class="stat">
+                    <div class="stat-value">10</div>
+                    <div class="stat-label">Документов</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-value">425</div>
+                    <div class="stat-label">Средний chunk_size</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-value">62</div>
+                    <div class="stat-label">Средний overlap</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-value">3</div>
+                    <div class="stat-label">Типов документов</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

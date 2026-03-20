@@ -1,0 +1,160 @@
+[
+  {
+    "text": "основные компоненты",
+    "type": "heading",
+    "context": {},
+    "metadata": {
+      "source": "pdfs/test_document.pdf",
+      "page_number": 1,
+      "chunk_id": "chunk_000",
+      "timestamp": "2026-03-07T02:14:30.702239",
+      "chunk_type": "heading",
+      "char_count": 19,
+      "word_count": 2
+    }
+  },
+  {
+    "text": "часто задаваемые вопросы",
+    "type": "heading",
+    "context": {},
+    "metadata": {
+      "source": "pdfs/test_document.pdf",
+      "page_number": 1,
+      "chunk_id": "chunk_001",
+      "timestamp": "2026-03-07T02:14:30.702239",
+      "chunk_type": "heading",
+      "char_count": 24,
+      "word_count": 3
+    }
+  },
+  {
+    "text": "важные даты",
+    "type": "heading",
+    "context": {},
+    "metadata": {
+      "source": "pdfs/test_document.pdf",
+      "page_number": 1,
+      "chunk_id": "chunk_002",
+      "timestamp": "2026-03-07T02:14:30.702239",
+      "chunk_type": "heading",
+      "char_count": 11,
+      "word_count": 2
+    }
+  },
+  {
+    "text": "введение в rag-системы rag (retrieval-augmented generation) — это подход в области искусственного интеллекта, который комбинирует возможности генеративных моделей с поиском релевантной информации.",
+    "type": "paragraph",
+    "context": {},
+    "metadata": {
+      "source": "pdfs/test_document.pdf",
+      "page_number": 1,
+      "chunk_id": "chunk_003",
+      "timestamp": "2026-03-07T02:14:30.702239",
+      "chunk_type": "paragraph",
+      "char_count": 196,
+      "word_count": 22
+    }
+  },
+  {
+    "text": "вопрос: что такое эмбеддинг? ответ: эмбеддинг — это числовое представление текста в векторном пространстве. вопрос: какие модели используются для rag? ответ: наиболее популярны модели семейства gpt, claude и локальные модели вроде llama.",
+    "type": "paragraph",
+    "context": {},
+    "metadata": {
+      "source": "pdfs/test_document.pdf",
+      "page_number": 1,
+      "chunk_id": "chunk_004",
+      "timestamp": "2026-03-07T02:14:30.702239",
+      "chunk_type": "paragraph",
+      "char_count": 237,
+      "word_count": 32
+    }
+  },
+  {
+    "text": "разработка rag началась в 2020 году. первые коммерческие решения появились в 2022-2023 годах. конференция по rag состоится 2025-05-15.",
+    "type": "paragraph",
+    "context": {},
+    "metadata": {
+      "source": "pdfs/test_document.pdf",
+      "page_number": 1,
+      "chunk_id": "chunk_005",
+      "timestamp": "2026-03-07T02:14:30.702239",
+      "chunk_type": "paragraph",
+      "char_count": 134,
+      "word_count": 18
+    }
+  },
+  {
+    "text": "1. векторная база данных для хранения эмбеддингов 2. модель эмбеддингов для преобразования текста 3. генеративная модель (llm) для создания ответов 4. механизм поиска релевантной информации",
+    "type": "list",
+    "context": {
+      "items": 4
+    },
+    "metadata": {
+      "source": "pdfs/test_document.pdf",
+      "page_number": 1,
+      "chunk_id": "chunk_006",
+      "timestamp": "2026-03-07T02:14:30.702239",
+      "chunk_type": "list",
+      "char_count": 189,
+      "word_count": 25
+    }
+  },
+  {
+    "text": "преимущества rag",
+    "type": "heading",
+    "context": {},
+    "metadata": {
+      "source": "pdfs/test_document.pdf",
+      "page_number": 2,
+      "chunk_id": "chunk_000",
+      "timestamp": "2026-03-07T02:14:30.702992",
+      "chunk_type": "heading",
+      "char_count": 16,
+      "word_count": 2
+    }
+  },
+  {
+    "text": "основные преимущества rag-систем:",
+    "type": "heading",
+    "context": {},
+    "metadata": {
+      "source": "pdfs/test_document.pdf",
+      "page_number": 2,
+      "chunk_id": "chunk_001",
+      "timestamp": "2026-03-07T02:14:30.702992",
+      "chunk_type": "heading",
+      "char_count": 33,
+      "word_count": 3
+    }
+  },
+  {
+    "text": "в этой области часто используются сокращения: то есть (то есть), и так далее (и так далее), так как (так как).",
+    "type": "paragraph",
+    "context": {},
+    "metadata": {
+      "source": "pdfs/test_document.pdf",
+      "page_number": 2,
+      "chunk_id": "chunk_002",
+      "timestamp": "2026-03-07T02:14:30.702992",
+      "chunk_type": "paragraph",
+      "char_count": 110,
+      "word_count": 20
+    }
+  },
+  {
+    "text": "- точность ответов за счёт использования актуальной информации - возможность работы с собственными данными компании - снижение галлюцинаций модели - прозрачность источников информации",
+    "type": "list",
+    "context": {
+      "items": 4
+    },
+    "metadata": {
+      "source": "pdfs/test_document.pdf",
+      "page_number": 2,
+      "chunk_id": "chunk_003",
+      "timestamp": "2026-03-07T02:14:30.702992",
+      "chunk_type": "list",
+      "char_count": 183,
+      "word_count": 23
+    }
+  }
+]

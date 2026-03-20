@@ -1,15 +1,19 @@
 {
-  "version": "2.4.0",
+  "version": "3.2.0",
   "author": "Line_GV",
   "author_url": "https://t.me/Line_GV",
-  "release_date": "2026-02-18",
+  "release_date": "2026-03-07",
   "input_dir": "./pdfs/",
   "output_dir": "./output_module_2/",
   "chunk_size": 500,
   "overlap": 50,
   "embedding_model": "text-embedding-3-small",
+  "llm_model": "gpt-4o-mini",
   "vector_db_type": "faiss",
   "api_base": "https://openai.api.proxyapi.ru/v1",
   "ocr_enabled": true,
-  "log_level": "INFO"
+  "log_level": "INFO",
+  "use_cache": true,
+  "max_retries": 3,
+  "retry_delay": 2.0
 }

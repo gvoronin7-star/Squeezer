@@ -1,7 +1,9 @@
 # Руководство пользователя "Соковыжималка" (Squeezer)
 
-**Версия:** 2.4.0
+**Версия:** 3.2.0  
 **Автор:** [Line_GV](https://t.me/Line_GV)
+
+> **📋 Полная история проекта:** см. [PROJECT_SUMMARY.md](PROJECT_SUMMARY.md)
 
 ## Введение
 
@@ -581,10 +583,164 @@ chunks = result["chunks"]
 vectorization = result["vectorization"]
 ```
 
+## Advanced RAG (v2.6.0 - v2.8.0)
+
+Система включает полный набор Advanced RAG техник:
+
+### Re-ranking (v2.6.0)
+Переранжирование документов для повышения точности (+15-30%).
+
+```python
+from src.reranker import rerank_results
+
+results = rerank_results(query, documents, llm_model="gpt-4o-mini")
+```
+
+### HyDE Search (v2.6.0)
+Поиск по гипотетическому ответу для улучшения recall (+10-20%).
+
+```python
+from src.hyde_search import hyde_search
+
+results = hyde_search(query, index, dataset, llm_model="gpt-4o-mini")
+```
+
+### Fusion Retrieval (v2.6.0)
+Объединение векторного, ключевого и LLM поиска (+20-40%).
+
+```python
+from src.retriever import fusion_search
+
+results = fusion_search(query, index, dataset, llm_model="gpt-4o-mini")
+```
+
+### Query Rewriting (v2.8.0)
+Перезапись запросов для улучшения поиска.
+
+```python
+from src.query_rewriter import rewrite_query
+
+result = rewrite_query("как создать бота", llm_model="gpt-4o-mini")
+# Результат: "как создать telegram бота с помощью python"
+```
+
+### Answer с цитатами (v2.8.0)
+Генерация ответов с автоматическими ссылками на источники.
+
+```python
+from src.answer_generator import generate_answer_with_citations
+
+result = generate_answer_with_citations(query, documents)
+print(result['answer'])  # Ответ с цитатами [source: chunk_001, p.1]
+```
+
+### Извлечение таблиц (v2.8.0)
+Извлечение и интерпретация таблиц из PDF.
+
+```python
+from src.table_extractor import extract_tables_from_pdf
+
+tables = extract_tables_from_pdf("document.pdf", use_llm=True)
+# Результат: JSON с описаниями и данными таблиц
+```
+
+### Self-RAG (v2.8.0)
+Самокорректирующийся RAG с оценкой качества.
+
+```python
+from src.self_rag import self_rag_query
+
+result = self_rag_query(query, vector_store, top_k=5)
+print(result['final_confidence'])  # Оценка уверенности
+print(result['answer_evaluation']['quality'])  # quality: excellent/good/partial
+```
+
+### RAG Engine (v3.1.0) - РЕКОМЕНДУЕТСЯ
+Интегрированный RAG-движок с единым интерфейсом.
+
+```python
+from src.rag_engine import ask_rag, create_rag_engine
+
+# Быстрый вызов
+result = ask_rag("Ваш вопрос", "vector_db/", llm_model="gpt-4o-mini")
+print(result['answer'])
+print(result['sources'])
+
+# Или создайте движок с настройками
+rag = create_rag_engine(
+    db_path="vector_db/",
+    use_reranker=True,
+    use_hyde=False,
+    use_cache=True
+)
+answer = rag.ask("Вопрос?")
+```
+
+### Метрики и мониторинг (v3.1.0)
+Сбор метрик с поддержкой Prometheus.
+
+```python
+from src.metrics import get_metrics, Timer
+from src.rag_engine import ask_rag
+
+# Автоматический сбор метрик
+result = ask_rag("Question?", "vector_db/")
+
+# Получение статистики
+metrics = get_metrics()
+print(metrics.get_stats())
+
+# Экспорт в Prometheus
+print(metrics.export_prometheus())
+```
+
+### Async/Parallel Processing (v3.1.0)
+Параллельная обработка для ускорения.
+
+```python
+from src.async_processor import ParallelProcessor, ParallelConfig
+
+processor = ParallelProcessor(ParallelConfig(max_workers=4))
+results = processor.map_parallel(func, items)
+```
+
+### Интеграционный пайплайн (v2.8.0)
+Объединяет все Advanced RAG функции.
+
+```python
+from src.advanced_rag_pipeline import create_advanced_rag_pipeline
+
+pipeline = create_advanced_rag_pipeline(config, vector_store)
+
+result = pipeline.query(
+    query="ваш вопрос",
+    use_query_rewrite=True,
+    use_self_rag=True,
+    use_citations=True,
+    top_k=5
+)
+```
+
+### Кэширование эмбеддингов (v2.8.0)
+Экономия API вызовов при повторной обработке.
+
+```python
+from src.embedding_cache import get_embedding_with_cache
+
+embedding = get_embedding_with_cache(text, model, client)
+# Автоматически проверяет кэш перед запросом к API
+```
+
 ## Поддержка
 
 **Автор:** Line_GV  
 **Telegram:** [@Line_GV](https://t.me/Line_GV)
+
+## Ссылки
+
+- [PROJECT_SUMMARY.md](PROJECT_SUMMARY.md) — Полная история проекта
+- [CHANGELOG.md](CHANGELOG.md) — История изменений
+- [ROADMAP.md](ROADMAP.md) — Дорожная карта
 
 ## Лицензия
 

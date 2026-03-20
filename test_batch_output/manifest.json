@@ -1,0 +1,18 @@
+{
+  "created_at": "2026-03-06T20:00:24.813161",
+  "input_dir": "pdfs/",
+  "output_dir": "test_batch_output/",
+  "parameters": {
+    "chunk_size": 300,
+    "overlap": 30,
+    "embedding_model": "text-embedding-3-small",
+    "ocr_enabled": true
+  },
+  "processed_files": [
+    "very_dirty_document.pdf",
+    "test_document.pdf",
+    "dirty_document.pdf"
+  ],
+  "total_chunks": 19,
+  "total_vectors": 0
+}

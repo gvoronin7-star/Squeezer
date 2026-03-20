@@ -1,7 +1,9 @@
 # Архитектура проекта "Соковыжималка"
 
-**Версия:** 2.4.0
+**Версия:** 3.2.0  
 **Автор:** [Line_GV](https://t.me/Line_GV)
+
+> **📋 Полная история проекта:** см. [PROJECT_SUMMARY.md](PROJECT_SUMMARY.md)
 
 ## Обзор
 
@@ -523,10 +525,306 @@ embedding = [-0.0028, -0.0111, -0.0644, 0.0530, ...]  # 1536 значений
 - `docs/MODULE_4_API.md` - API Модуля 4
 - `docs/MODULE_5_API.md` - API Модуля 5 (RAG Builder)
 
+## Advanced RAG (v2.6.0 - v2.8.0)
+
+### Архитектура Advanced RAG
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                  Advanced RAG модули                        │
+├─────────────────────────────────────────────────────────────┤
+│                                                              │
+│  ┌─────────────────┐  ┌─────────────────┐                  │
+│  │  src/reranker   │  │ src/hyde_search │                  │
+│  │  (v2.6.0)       │  │    (v2.6.0)     │                  │
+│  │  +15-30%        │  │  +10-20%        │                  │
+│  │  precision      │  │  recall         │                  │
+│  └────────┬────────┘  └────────┬────────┘                  │
+│           │                    │                           │
+│           └────────┬───────────┘                           │
+│                    ▼                                        │
+│           ┌────────────────┐                               │
+│           │ src/retriever  │                               │
+│           │   (v2.6.0)     │                               │
+│           │    Fusion      │                               │
+│           │ +20-40%        │                               │
+│           └────────┬───────┘                               │
+│                    │                                        │
+└────────────────────┼────────────────────────────────────────┘
+                     │
+                     ▼
+┌─────────────────────────────────────────────────────────────┐
+│                  Advanced RAG v2.8.0                        │
+├─────────────────────────────────────────────────────────────┤
+│                                                              │
+│  ┌─────────────────┐  ┌─────────────────┐                  │
+│  │   src/query_    │  │    src/answer   │                  │
+│  │   rewriter      │  │   _generator    │                  │
+│  │   (v2.8.0)      │  │    (v2.8.0)     │                  │
+│  │  +20-40%        │  │   Citations     │                  │
+│  │  recall         │  │                 │                  │
+│  └────────┬────────┘  └────────┬────────┘                  │
+│           │                    │                           │
+│  ┌────────┴────────┐  ┌────────┴────────┐                  │
+│  │ src/embedding   │  │ src/table_      │                  │
+│  │    _cache       │  │   extractor     │                  │
+│  │   (v2.8.0)      │  │    (v2.8.0)     │                  │
+│  │ 70% API save    │  │ PDF → JSON      │                  │
+│  └────────┬────────┘  └────────┬────────┘                  │
+│           │                    │                           │
+│           └────────┬───────────┘                           │
+│                    ▼                                        │
+│           ┌────────────────┐                               │
+│           │  src/self_rag  │                               │
+│           │    (v2.8.0)    │                               │
+│           │ Self-correction│                               │
+│           └────────┬───────┘                               │
+│                    │                                        │
+│           ┌────────┴────────┐                              │
+│           │ src/advanced_   │                              │
+│           │ rag_pipeline    │                              │
+│           │    (v2.8.0)     │                              │
+│           │  Integration    │                              │
+│           └─────────────────┘                              │
+│                                                              │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### Модули Advanced RAG
+
+| Модуль | Файл | Версия | Описание |
+|--------|------|--------|----------|
+| Re-ranking | `src/reranker.py` | 2.6.0 | Переранжирование через LLM |
+| HyDE | `src/hyde_search.py` | 2.6.0 | Поиск по гипотетическому ответу |
+| Fusion | `src/retriever.py` | 2.6.0 | Объединение методов поиска |
+| Improved RAG | `src/improved_rag.py` | 2.6.0 | Интеграция базовых методов |
+| Embedding Cache | `src/embedding_cache.py` | 2.8.0 | Кэширование эмбеддингов |
+| Query Rewriter | `src/query_rewriter.py` | 2.8.0 | Перезапись запросов |
+| Answer Generator | `src/answer_generator.py` | 2.8.0 | Ответы с цитатами |
+| Table Extractor | `src/table_extractor.py` | 2.8.0 | Извлечение таблиц |
+| Self-RAG | `src/self_rag.py` | 2.8.0 | Самокорректирующийся RAG |
+| Advanced Pipeline | `src/advanced_rag_pipeline.py` | 2.8.0 | Единый интерфейс |
+
+### Технические детали Advanced RAG
+
+| Параметр | Значение |
+|----------|----------|
+| Кэш эмбеддингов | 100MB, 30 дней |
+| Max итераций Self-RAG | 2 |
+| Порог релевантности | 0.3 |
+| Query rewriting стратегии | expand, split, clarify |
+| Citation format | [source: chunk_id, p.N] |
+
+## Новые LLM модули (v3.2.0)
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│              Расширенные LLM возможности                    │
+├─────────────────────────────────────────────────────────────┤
+│                                                              │
+│   src/smart_chunker.py                                      │
+│   - Смысловое разбиение текста (вместо размера)             │
+│   - LLM определяет логические границы чанков                │
+│   - Добавляет summary и keywords к каждому чанку            │
+│                                                              │
+│   src/summarizer.py                                         │
+│   - Генерация краткого резюме документа                      │
+│   - Типы: brief, detailed, bullet                           │
+│   - Резюме страниц и разделов                               │
+│   - Интеграция в metadata                                   │
+│                                                              │
+│   src/entity_extractor.py (NER)                             │
+│   - Извлечение именованных сущностей                        │
+│   - Типы: dates, persons, organizations, locations          │
+│   - amounts, emails, phones, urls                           │
+│   - Добавление в метаданные чанков                          │
+│                                                              │
+│   src/metadata_classifier.py                                │
+│   - Автоматическая категоризация документа                  │
+│   - Тип документа, тематика, теги                           │
+│   - Целевая аудитория, сложность                            │
+│   - Рекомендации параметров чанкинга                        │
+│                                                              │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### Быстрый старт с новыми модулями
+
+```python
+# Интеллектуальный чанкер
+from src.smart_chunker import smart_chunk_with_llm
+chunks = smart_chunk_with_llm(text, llm_model="gpt-4o-mini")
+
+# Генератор резюме
+from src.summarizer import generate_document_summary
+summary = generate_document_summary(pages, summary_type="brief")
+
+# Извлечение сущностей
+from src.entity_extractor import extract_entities
+entities = extract_entities(text)
+
+# Классификатор
+from src.metadata_classifier import classify_document, suggest_chunk_parameters
+classification = classify_document(pages)
+params = suggest_chunk_parameters(classification)
+```
+
+## RAG Engine (v3.1.0)
+
+### Новые возможности v3.1.0
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    Мониторинг и метрики                      │
+├─────────────────────────────────────────────────────────────┤
+│                                                              │
+│   src/metrics.py                                            │
+│   - Сбор метрик (время, ошибки, API вызовы)                 │
+│   - Prometheus экспорт                                      │
+│   - Контекстный менеджер Timer                              │
+│   - Счётчики и статистика                                   │
+│                                                              │
+│   src/async_processor.py                                    │
+│   - ParallelProcessor (ThreadPool)                          │
+│   - AsyncProcessor (asyncio)                                │
+│   - PDFPageProcessor (параллельные страницы)                │
+│   - EmbeddingBatcher (батчи с rate limiting)                │
+│                                                              │
+│   src/vectorizer.py (updated)                               │
+│   - Retry с exponential backoff                             │
+│   - max_retries, retry_delay параметры                      │
+│                                                              │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### Быстрый старт с метриками
+
+```python
+from src.metrics import get_metrics, Timer
+from src.rag_engine import ask_rag
+
+# Использование Timer
+with Timer("my_operation"):
+    # Ваш код
+    result = ask_rag("Question?", "vector_db/")
+
+# Получение метрик
+metrics = get_metrics()
+stats = metrics.get_stats()
+print(stats)
+
+# Экспорт в Prometheus
+print(metrics.export_prometheus())
+```
+
+### Интегрированный RAG-движок
+
+С версии 3.0.0 все компоненты RAG объединены в единый движок:
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    src/rag_engine.py                        │
+│                    RAG Engine v3.0.0                        │
+├─────────────────────────────────────────────────────────────┤
+│                                                              │
+│   ┌─────────────┐  ┌─────────────┐  ┌─────────────┐        │
+│   │  HyDE       │  │   Query     │  │   Cache     │        │
+│   │  Search     │  │  Rewriter   │  │  (embed)    │        │
+│   └──────┬──────┘  └──────┬──────┘  └──────┬──────┘        │
+│          │                │                │               │
+│          └────────────────┼────────────────┘               │
+│                           ▼                                 │
+│   ┌─────────────────────────────────────────────────┐      │
+│   │              RAGEngine                           │      │
+│   │  - load_index()                                  │      │
+│   │  - search()                                      │      │
+│   │  - ask()                                         │      │
+│   └─────────────────────┬───────────────────────────┘      │
+│                         │                                    │
+│          ┌──────────────┼──────────────┐                    │
+│          ▼              ▼              ▼                    │
+│   ┌────────────┐ ┌────────────┐ ┌────────────┐             │
+│   │  Vector    │ │  Reranker  │ │  Answer    │             │
+│   │  Search    │ │            │ │  Generator │             │
+│   └────────────┘ └────────────┘ └────────────┘             │
+│                                                              │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### Быстрый старт
+
+```python
+from src.rag_engine import create_rag_engine, ask_rag
+
+# Вариант 1: Один вызов
+result = ask_rag(
+    query="Ваш вопрос",
+    db_path="output/vector_db/",
+    llm_model="gpt-4o-mini"
+)
+
+print(result['answer'])
+print(result['sources'])
+
+# Вариант 2: Создание движка
+rag = create_rag_engine(
+    db_path="output/vector_db/",
+    use_reranker=True,
+    use_hyde=False
+)
+
+if rag.is_ready():
+    answer = rag.ask("Вопрос?")
+```
+
+### Конфигурация RAG Engine
+
+```python
+from src.rag_engine import RAGConfig, RAGEngine
+
+config = RAGConfig(
+    embedding_model="text-embedding-3-small",
+    llm_model="gpt-4o-mini",
+    api_key="sk-...",
+    api_base="https://openai.api.proxyapi.ru/v1",
+    top_k=10,
+    vector_weight=0.4,
+    keyword_weight=0.3,
+    llm_weight=0.3,
+    use_reranker=True,
+    reranker_top_k=5,
+    use_hyde=False,
+    use_query_rewriter=False,
+    use_cache=True,
+    include_citations=True,
+    max_context_docs=10
+)
+
+rag = RAGEngine(config)
+rag.load_index("vector_db/")
+result = rag.ask("Вопрос")
+```
+
+### Интеграция с основным пайплайном
+
+```
+PDF → preprocessor.py → chunker.py → vectorizer.py
+                                              ↓
+                                    Векторная БД (FAISS)
+                                              ↓
+                                    rag_engine.py (поиск + ответ)
+```
+
 ## Контакты
 
 **Автор:** Line_GV  
 **Telegram:** [@Line_GV](https://t.me/Line_GV)
+
+## Ссылки
+
+- [PROJECT_SUMMARY.md](PROJECT_SUMMARY.md) — Полная история
+- [CHANGELOG.md](CHANGELOG.md) — История изменений
+- [ROADMAP.md](ROADMAP.md) — Дорожная карта
 
 ## Лицензия
 

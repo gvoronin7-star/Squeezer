@@ -117,7 +117,10 @@ def save_to_vector_db(
     model_name: str = "text-embedding-3-small",
     api_key: str = None,
     api_base: str = "https://openai.api.proxyapi.ru/v1",
-    output_dir: str = "output"
+    output_dir: str = "output",
+    use_cache: bool = True,
+    max_retries: int = 3,
+    retry_delay: float = 2.0
 ) -> Dict[str, Any]:
     """
     Генерирует эмбеддинги и сохраняет в векторную БД.
@@ -183,20 +186,82 @@ def save_to_vector_db(
 
     logger.info(f"[Этап 8] Генерация эмбеддингов для {len(texts)} чанков...")
 
-    try:
-        # Генерация эмбеддингов через OpenAI API
-        response = client.embeddings.create(
-            model=model_name,
-            input=texts
-        )
+    # Инициализация кэша (если включено)
+    cache = None
+    cached_count = 0
+    
+    if use_cache:
+        try:
+            from src.embedding_cache import get_embedding_cache
+            cache = get_embedding_cache()
+            logger.info(f"[Этап 8] Кэш эмбеддингов включён")
+        except ImportError:
+            logger.warning("[Этап 8] Модуль кэша не найден, кэширование отключено")
+            use_cache = False
 
-        embeddings = [item.embedding for item in response.data]
+    # Функция для генерации эмбеддингов с retry
+    def generate_with_retry(client, texts: list, model: str) -> list:
+        """Генерирует эмбеддинги с автоматическим retry."""
+        import time
+        
+        last_error = None
+        for attempt in range(max_retries):
+            try:
+                response = client.embeddings.create(
+                    model=model,
+                    input=texts
+                )
+                return [item.embedding for item in response.data]
+                
+            except Exception as e:
+                last_error = e
+                if attempt < max_retries - 1:
+                    wait_time = retry_delay * (2 ** attempt)  # Exponential backoff
+                    logger.warning(f"[Этап 8] Попытка {attempt + 1} неудачна: {e}. Повтор через {wait_time}с...")
+                    time.sleep(wait_time)
+                else:
+                    logger.error(f"[Этап 8] Все {max_retries} попыток исчерпаны")
+        
+        raise last_error
+    
+    try:
+        # Проверяем кэш
+        if use_cache and cache:
+            # Разделяем на кэшированные и новые
+            cached_embeddings = cache.get_batch(texts, model_name)
+            new_indices = [i for i in range(len(texts)) if i not in cached_embeddings]
+            cached_count = len(cached_embeddings)
+            
+            if new_indices:
+                # Получаем только новые эмбеддинги с retry
+                new_texts = [texts[i] for i in new_indices]
+                new_embeddings = generate_with_retry(client, new_texts, model_name)
+                
+                # Сохраняем новые в кэш
+                cache.set_batch(new_texts, model_name, new_embeddings)
+                
+                # Объединяем
+                embeddings = []
+                new_idx = 0
+                for i in range(len(texts)):
+                    if i in cached_embeddings:
+                        embeddings.append(cached_embeddings[i])
+                    else:
+                        embeddings.append(new_embeddings[new_idx])
+                        new_idx += 1
+            else:
+                # Все в кэше
+                embeddings = [cached_embeddings[i] for i in range(len(texts))]
+        else:
+            # Стандартный вызов без кэша
+            embeddings = generate_with_retry(client, texts, model_name)
+
         embedding_dim = len(embeddings[0]) if embeddings else 0
 
-        logger.info(f"[Этап 8] Сгенерировано {len(embeddings)} эмбеддингов размерности {embedding_dim}")
+        logger.info(f"[Этап 8] Сгенерировано {len(embeddings)} эмбеддингов (из кэша: {cached_count}) размерности {embedding_dim}")
 
     except Exception as e:
-        logger.error(f"[Этап 8] Ошибка при генерации эмбеддингов: {e}")
+        logger.error(f"[Этап 8] Ошибка при генерации эмбеддингов после {max_retries} попыток: {e}")
         raise
 
     # Создание индекса FAISS
@@ -359,7 +424,8 @@ def process_vectorization(
     model_name: str = "text-embedding-3-small",
     db_type: str = "faiss",
     api_key: str = None,
-    api_base: str = None
+    api_base: str = None,
+    use_cache: bool = True
 ) -> Dict[str, Any]:
     """
     Полный цикл векторизации и сохранения в БД.
@@ -387,7 +453,8 @@ def process_vectorization(
         model_name=model_name,
         api_key=api_key,
         api_base=api_base,
-        output_dir=output_dir
+        output_dir=output_dir,
+        use_cache=use_cache
     )
 
     # Генерация отчёта

@@ -6,9 +6,17 @@
 
 import logging
 import re
+import os
 from typing import Any, Dict, List
 from datetime import datetime
 from pathlib import Path
+
+# Загрузка переменных окружения
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass
 
 # Библиотеки для работы с PDF
 try:
@@ -815,7 +823,9 @@ def process_pdf(
     embedding_model: str = "text-embedding-3-small",
     vector_db_type: str = "faiss",
     api_key: str = None,
-    api_base: str = "https://openai.api.proxyapi.ru/v1"
+    api_base: str = "https://openai.api.proxyapi.ru/v1",
+    use_llm: bool = True,
+    llm_model: str = "gpt-4o-mini"
 ) -> Dict[str, Any]:
     """
     Полный цикл обработки PDF-файла.
@@ -832,8 +842,10 @@ def process_pdf(
         enable_vectorization: Включить этапы 7-8 (векторизация и БД).
         embedding_model: Модель эмбеддингов (если enable_vectorization=True).
         vector_db_type: Тип векторной БД (если enable_vectorization=True).
-        api_key: API ключ OpenAI.
+        api_key: API ключ OpenAI (также используется для LLM если не задан отдельно).
         api_base: Базовый URL API.
+        use_llm: Использовать LLM для обогащения метаданных чанков (по умолчанию True).
+        llm_model: Модель LLM для обогащения (по умолчанию: gpt-4o-mini).
 
     Returns:
         Словарь с результатами обработки.
@@ -898,19 +910,39 @@ def process_pdf(
 
     if enable_chunking:
         try:
-            from src.chunker import process_chunks
-            chunking_result = process_chunks(
-                processed_pages,
-                pdf_path,
-                output_dir,
-                max_chunk_size,
-                overlap,
-                generate_demo=generate_demo  # Генерировать демонстрационный файл
-            )
+            if use_llm:
+                # Используем LLM-усиленный чанкер
+                from src.llm_chunker import process_chunks_with_llm
+                chunking_result = process_chunks_with_llm(
+                    processed_pages,
+                    pdf_path,
+                    output_dir,
+                    max_chunk_size,
+                    overlap,
+                    use_llm=True,
+                    llm_api_key=api_key,
+                    llm_model=llm_model,
+                    llm_api_base=api_base,
+                    generate_demo=generate_demo
+                )
+                logger.info(f"LLM-усиленный чанкинг ({llm_model}) завершён: {len(chunking_result.get('chunks', []))} чанков")
+            else:
+                # Используем классический чанкер
+                from src.chunker import process_chunks
+                chunking_result = process_chunks(
+                    processed_pages,
+                    pdf_path,
+                    output_dir,
+                    max_chunk_size,
+                    overlap,
+                    generate_demo=generate_demo
+                )
+                logger.info(f"Классический чанкинг завершён: {len(chunking_result.get('chunks', []))} чанков")
+            
             chunks = chunking_result.get("chunks", [])
-            logger.info(f"Чанкинг завершён: {len(chunks)} чанков")
-        except ImportError:
-            logger.warning("Модуль chunker не найден, чанкинг пропущен")
+            
+        except ImportError as e:
+            logger.warning(f"Модуль чанкера не найден: {e}, чанкинг пропущен")
         except Exception as e:
             logger.error(f"Ошибка при чанкинге: {e}")
             import traceback
