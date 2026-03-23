@@ -1,8 +1,8 @@
 {
-  "version": "3.3.0",
+  "version": "3.5.0",
   "author": "Line_GV",
   "author_url": "https://t.me/Line_GV",
-  "release_date": "2026-03-20",
+  "release_date": "2026-03-23",
   "input_dir": "./pdfs/",
   "output_dir": "./output_module_2/",
   "chunk_size": 500,

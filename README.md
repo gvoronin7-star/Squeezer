@@ -1,6 +1,6 @@
 # Руководство пользователя "Соковыжималка" (Squeezer)
 
-**Версия:** 3.4.0  
+**Версия:** 3.5.0  
 **Автор:** [Line_GV](https://t.me/Line_GV)
 
 > **📋 История изменений:** см. [CHANGELOG.md](CHANGELOG.md)
@@ -418,10 +418,10 @@ for i, (dist, idx) in enumerate(zip(distances[0], indices[0])):
 
 ```json
 {
-  "version": "3.3.0",
+  "version": "3.5.0",
   "author": "Line_GV",
   "author_url": "https://t.me/Line_GV",
-  "release_date": "2026-03-20",
+  "release_date": "2026-03-23",
   "input_dir": "./pdfs/",
   "output_dir": "./output/",
   "chunk_size": 500,
@@ -730,6 +730,73 @@ from src.embedding_cache import get_embedding_with_cache
 embedding = get_embedding_with_cache(text, model, client)
 # Автоматически проверяет кэш перед запросом к API
 ```
+
+## Тестирование качества RAG-баз (v3.5.0)
+
+Система для комплексной оценки качества созданных RAG-баз данных.
+
+### Категории тестов
+
+| Категория | Вес | Описание |
+|-----------|-----|----------|
+| **Structure** | 10% | Целостность файлов индекса |
+| **Chunks** | 25% | Качество чанков (размер, дубликаты, метаданные) |
+| **Search** | 30% | Качество поиска (precision, recall, latency) |
+| **Answers** | 25% | Качество ответов (correctness, groundedness) |
+| **Coverage** | 10% | Покрытие контента (темы, ключевые слова) |
+
+### Запуск тестирования
+
+```bash
+# GUI (рекомендуется)
+python Testing_vector_RAG_base/run_gui.py
+
+# CLI
+python Testing_vector_RAG_base/rag_quality_tester.py --db-path ./output/vector_db --report report.html
+```
+
+### Python API
+
+```python
+from Testing_vector_RAG_base import RAGQualityTester
+
+# Создаём тестировщик
+tester = RAGQualityTester(
+    db_path="./output/vector_db",
+    api_key="sk-...",
+    llm_model="gpt-4o-mini"
+)
+
+# Запускаем все тесты
+report = tester.run_all_tests()
+
+# Проверяем результат
+print(f"Оценка: {report.total_score}/100")
+print(f"Статус: {'ПРОЙДЕНО' if report.passed else 'НЕ ПРОЙДЕНО'}")
+
+# Экспорт отчёта
+tester.export_report("report.html", format="html")
+```
+
+### Результаты тестирования
+
+```
+=== ИТОГ ===
+Оценка: 89.7/100
+Статус: ПРОЙДЕНО
+Порог: 80%
+
+=== КАТЕГОРИИ ===
+structure    [====================] 100.0% [OK]
+chunks       [================    ]  83.3% [OK]
+search       [====================] 100.0% [OK]
+answers      [================    ] 83.3% [OK]
+coverage     [================    ] 80.0% [OK]
+```
+
+### Настраиваемый порог
+
+Порог качества настраивается в `config.yaml` (по умолчанию 80%). Пользователь принимает окончательное решение о пригодности базы.
 
 ## Тестирование
 
