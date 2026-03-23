@@ -825,7 +825,9 @@ def process_pdf(
     api_key: str = None,
     api_base: str = "https://openai.api.proxyapi.ru/v1",
     use_llm: bool = True,
-    llm_model: str = "gpt-4o-mini"
+    llm_model: str = "gpt-4o-mini",
+    llm_api_base: str = None,
+    progress_callback: callable = None
 ) -> Dict[str, Any]:
     """
     Полный цикл обработки PDF-файла.
@@ -843,9 +845,11 @@ def process_pdf(
         embedding_model: Модель эмбеддингов (если enable_vectorization=True).
         vector_db_type: Тип векторной БД (если enable_vectorization=True).
         api_key: API ключ OpenAI (также используется для LLM если не задан отдельно).
-        api_base: Базовый URL API.
+        api_base: Базовый URL API для OpenAI/векторизации.
         use_llm: Использовать LLM для обогащения метаданных чанков (по умолчанию True).
         llm_model: Модель LLM для обогащения (по умолчанию: gpt-4o-mini).
+        llm_api_base: Базовый URL для LLM API (если None, LLMChunker выберет автоматически).
+        progress_callback: Функция для обновления прогресса (stage: str, progress: float).
 
     Returns:
         Словарь с результатами обработки.
@@ -853,6 +857,8 @@ def process_pdf(
     logger.info(f"Начало обработки файла: {pdf_path}")
 
     # Этап 1: Извлечение
+    if progress_callback:
+        progress_callback("📄 Извлечение текста", 0.05)
     pages_data = extract_text_from_pdf(pdf_path, ocr_enabled, ocr_lang)
 
     # Обрабатываем каждую страницу
@@ -861,7 +867,7 @@ def process_pdf(
     cleaning_stats = {"tags_removed": 0, "whitespace_collapsed": 0, "control_chars_removed": 0, "duplicates_removed": 0}
     normalization_stats = {"abbr_expanded": 0, "dates_standardized": 0}
 
-    for page_data in pages_data:
+    for i, page_data in enumerate(pages_data):
         # Сохраняем исходный текст для демонстрации
         raw_text = page_data["text"]
 
@@ -889,7 +895,14 @@ def process_pdf(
         })
         all_structures.append(structure)
 
+        # Обновляем прогресс
+        if progress_callback:
+            progress = 0.05 + (i / len(pages_data)) * 0.15
+            progress_callback("📄 Извлечение текста", progress)
+
     # Генерация отчёта
+    if progress_callback:
+        progress_callback("📊 Генерация отчёта", 0.20)
     report_path = Path(output_dir) / "report.txt"
     stats = generate_report(
         pages_data,
@@ -909,10 +922,13 @@ def process_pdf(
     chunks = []
 
     if enable_chunking:
+        if progress_callback:
+            progress_callback("✂️ Чанкинг", 0.25)
         try:
             if use_llm:
                 # Используем LLM-усиленный чанкер
                 from src.llm_chunker import process_chunks_with_llm
+                # llm_api_base=None означает авто-выбор URL по модели (LLMChunker сам определит)
                 chunking_result = process_chunks_with_llm(
                     processed_pages,
                     pdf_path,
@@ -922,8 +938,9 @@ def process_pdf(
                     use_llm=True,
                     llm_api_key=api_key,
                     llm_model=llm_model,
-                    llm_api_base=api_base,
-                    generate_demo=generate_demo
+                    llm_api_base=llm_api_base,  # None = авто-выбор
+                    generate_demo=generate_demo,
+                    progress_callback=progress_callback
                 )
                 logger.info(f"LLM-усиленный чанкинг ({llm_model}) завершён: {len(chunking_result.get('chunks', []))} чанков")
             else:
@@ -952,27 +969,60 @@ def process_pdf(
     vectorization_result = None
 
     if enable_vectorization:
-        if not chunks:
-            logger.warning("Векторизация включена, но чанки не созданы. Векторизация пропущена.")
-        else:
-            try:
-                from src.vectorizer import process_vectorization
-                vectorization_result = process_vectorization(
-                    chunks,
-                    output_dir=output_dir,
-                    model_name=embedding_model,
-                    db_type=vector_db_type,
-                    api_key=api_key,
-                    api_base=api_base
-                )
-                logger.info("Векторизация завершена")
-            except ImportError:
-                logger.warning("Модуль vectorizer не найден, векторизация пропущена")
-            except Exception as e:
-                logger.error(f"Ошибка при векторизации: {e}")
-                import traceback
-                logger.error(traceback.format_exc())
+        if progress_callback:
+            progress_callback("🔢 Векторизация", 0.75)
+        # Проверяем отмену
+        try:
+            from src.llm_chunker import is_cancelled
+            if is_cancelled():
+                logger.info("Векторизация пропущена из-за отмены")
+            else:
+                if not chunks:
+                    logger.warning("Векторизация включена, но чанки не созданы. Векторизация пропущена.")
+                else:
+                    try:
+                        from src.vectorizer import process_vectorization
+                        vectorization_result = process_vectorization(
+                            chunks,
+                            output_dir=output_dir,
+                            model_name=embedding_model,
+                            db_type=vector_db_type,
+                            api_key=api_key,
+                            api_base=api_base,
+                            progress_callback=progress_callback
+                        )
+                        logger.info("Векторизация завершена")
+                    except ImportError:
+                        logger.warning("Модуль vectorizer не найден, векторизация пропущена")
+                    except Exception as e:
+                        logger.error(f"Ошибка при векторизации: {e}")
+                        import traceback
+                        logger.error(traceback.format_exc())
+        except ImportError:
+            # Если llm_chunker не доступен, продолжаем без проверки
+            if not chunks:
+                logger.warning("Векторизация включена, но чанки не созданы. Векторизация пропущена.")
+            else:
+                try:
+                    from src.vectorizer import process_vectorization
+                    vectorization_result = process_vectorization(
+                        chunks,
+                        output_dir=output_dir,
+                        model_name=embedding_model,
+                        db_type=vector_db_type,
+                        api_key=api_key,
+                        api_base=api_base
+                    )
+                    logger.info("Векторизация завершена")
+                except ImportError:
+                    logger.warning("Модуль vectorizer не найден, векторизация пропущена")
+                except Exception as e:
+                    logger.error(f"Ошибка при векторизации: {e}")
+                    import traceback
+                    logger.error(traceback.format_exc())
 
+    if progress_callback:
+        progress_callback("✅ Завершение", 0.95)
     logger.info(f"Обработка файла завершена: {pdf_path}")
 
     result = {

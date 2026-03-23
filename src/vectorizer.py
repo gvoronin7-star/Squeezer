@@ -280,10 +280,30 @@ def save_to_vector_db(
 
     # Сохранение индекса
     vector_db_dir = Path(output_dir) / "vector_db"
-    vector_db_dir.mkdir(parents=True, exist_ok=True)
+    try:
+        vector_db_dir.mkdir(parents=True, exist_ok=True)
+    except Exception as e:
+        logger.error(f"Не удалось создать папку vector_db: {e}")
+        # Пробуем создать в текущей директории
+        vector_db_dir = Path("output") / "vector_db"
+        vector_db_dir.mkdir(parents=True, exist_ok=True)
+        logger.warning(f"Используется альтернативный путь: {vector_db_dir}")
 
     index_path = vector_db_dir / "index.faiss"
-    faiss.write_index(index, str(index_path))
+    
+    try:
+        faiss.write_index(index, str(index_path))
+    except Exception as e:
+        logger.error(f"Ошибка записи FAISS индекса: {e}")
+        # Пробуем записать в текущую директорию
+        import shutil
+        import tempfile
+        with tempfile.NamedTemporaryFile(suffix='.faiss', delete=False) as tmp:
+            tmp_path = tmp.name
+        faiss.write_index(index, tmp_path)
+        shutil.copy2(tmp_path, str(index_path))
+        os.unlink(tmp_path)
+        logger.info(f"Индекс сохранён через временный файл: {index_path}")
 
     logger.info(f"[Этап 8] Индекс FAISS сохранён: {index_path}")
 
@@ -425,7 +445,8 @@ def process_vectorization(
     db_type: str = "faiss",
     api_key: str = None,
     api_base: str = None,
-    use_cache: bool = True
+    use_cache: bool = True,
+    progress_callback: callable = None
 ) -> Dict[str, Any]:
     """
     Полный цикл векторизации и сохранения в БД.
@@ -437,6 +458,7 @@ def process_vectorization(
         db_type: Тип векторной БД.
         api_key: API ключ OpenAI (если None, используется переменная окружения OPENAI_API_KEY).
         api_base: Базовый URL API (если None, используется переменная окружения OPENAI_API_BASE).
+        progress_callback: Функция для обновления прогресса (stage: str, progress: float).
 
     Returns:
         Словарь с результатами обработки.
@@ -444,9 +466,13 @@ def process_vectorization(
     logger.info("Начало векторизации датасета")
 
     # Этап 7: Проверка качества
+    if progress_callback:
+        progress_callback("📊 Проверка данных", 0.75)
     validation_result = validate_data(final_dataset)
 
     # Этап 8: Векторизация и сохранение в БД
+    if progress_callback:
+        progress_callback("🔢 Векторизация", 0.80)
     vectorization_result = save_to_vector_db(
         final_dataset,
         db_type=db_type,
@@ -458,6 +484,8 @@ def process_vectorization(
     )
 
     # Генерация отчёта
+    if progress_callback:
+        progress_callback("📝 Отчёт", 0.95)
     report_path = generate_vectorization_report(
         validation_result,
         vectorization_result,

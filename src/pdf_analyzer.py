@@ -76,6 +76,7 @@ def analyze_pdf(
                 "avg_sentences_per_page": 0,
                 "has_tables": False,
                 "has_equations": False,
+                "has_code": False,
                 "has_images_placeholder": False,
                 "heading_count": 0,
                 "list_count": 0,
@@ -93,9 +94,42 @@ def analyze_pdf(
                 text = page.extract_text() or ""
                 
                 # Проверяем, нужен ли OCR
-                if not text or len(text.strip()) < 20:
-                    metrics["ocr_needed_pages"] += 1
+                text_len = len(text.strip())
                 
+                # Логируем страницы с малым текстом
+                if text_len < 100:
+                    logger.info(f"Страница {i+1}: {text_len} символов текста")
+                
+                # OCR нужен если:
+                # 1. Совсем нет текста (< 10 символов)
+                # 2. И на странице есть изображения (признак скана)
+                if text_len < 10:
+                    # Проверяем наличие изображений через pypdf
+                    try:
+                        # pypdf 3.0+ имеет атрибут images
+                        if hasattr(page, 'images') and len(page.images) > 0:
+                            metrics["ocr_needed_pages"] += 1
+                            logger.info(f"🔍 OCR нужен для страницы {i+1}: {len(page.images)} изображений, {text_len} символов")
+                        else:
+                            # Альтернативный способ через ресурсы страницы
+                            if '/XObject' in page.get('/Resources', {}):
+                                xobjects = page['/Resources']['/XObject']
+                                if hasattr(xobjects, 'get_object'):
+                                    xobjects = xobjects.get_object()
+                                # Считаем количество изображений
+                                img_count = 0
+                                for key in xobjects:
+                                    obj = xobjects[key]
+                                    if hasattr(obj, 'get_object'):
+                                        obj = obj.get_object()
+                                    if obj.get('/Subtype') == '/Image':
+                                        img_count += 1
+                                if img_count > 0:
+                                    metrics["ocr_needed_pages"] += 1
+                                    logger.info(f"🔍 OCR нужен для страницы {i+1}: {img_count} изображений (XObject), {text_len} символов")
+                    except Exception as e:
+                        logger.debug(f"Не удалось проверить изображения на странице {i+1}: {e}")
+            
                 # Анализируем контент
                 text_lower = text.lower()
                 
@@ -106,6 +140,24 @@ def analyze_pdf(
                 # Уравнения
                 if re.search(r'[∑∏∫√∞≈≠≤≥±×÷]', text):
                     metrics["has_equations"] = True
+                
+                # Код (ключевые слова языков программирования)
+                code_patterns = [
+                    r'\bdef\s+\w+\s*\(',  # Python
+                    r'\bfunction\s+\w+\s*\(',  # JavaScript
+                    r'\bclass\s+\w+\s*[:\{]',  # Class definition
+                    r'\bif\s*\(.+\)\s*\{',  # If statement
+                    r'\bfor\s*\(.+\)\s*\{',  # For loop
+                    r'\bimport\s+\w+',  # Import
+                    r'\bfrom\s+\w+\s+import',  # Python import
+                    r'\breturn\s+',  # Return
+                    r'```[\s\S]*?```',  # Markdown code blocks
+                    r'\bprint\s*\(',  # Print
+                ]
+                for pattern in code_patterns:
+                    if re.search(pattern, text, re.IGNORECASE):
+                        metrics["has_code"] = True
+                        break
                 
                 # Изображения (маркеры)
                 if '/image' in text_lower or 'рис.' in text_lower or 'image' in text_lower:
@@ -140,6 +192,11 @@ def analyze_pdf(
                     except LangDetectException:
                         pass
             
+            # Логируем результат OCR
+            ocr_pages = metrics.get("ocr_needed_pages", 0)
+            if ocr_pages > 0:
+                logger.info(f"🔍 Всего страниц с OCR: {ocr_pages}")
+            
             # Вычисляем средние
             if pages_to_analyze > 0:
                 metrics["avg_chars_per_page"] = all_chars // pages_to_analyze
@@ -153,14 +210,40 @@ def analyze_pdf(
             else:
                 metrics["density"] = "high"
             
-            # Определяем сложность по средней длине предложений
+            # Определяем сложность по нескольким факторам
+            # 1. Средняя длина предложений
             avg_sentence_len = all_chars / max(all_sentences, 1)
-            if avg_sentence_len < 50:
-                metrics["complexity"] = "simple"
-            elif avg_sentence_len < 100:
+            
+            # 2. Наличие специальных элементов
+            has_special = metrics.get("has_equations") or metrics.get("has_tables")
+            
+            # 3. Плотность текста
+            density = metrics.get("density", "medium")
+            
+            # Комплексная оценка сложности
+            complexity_score = 0
+            
+            # Длина предложений
+            if avg_sentence_len > 120:
+                complexity_score += 2  # Очень длинные предложения
+            elif avg_sentence_len > 80:
+                complexity_score += 1  # Средние
+            
+            # Специальные элементы
+            if has_special:
+                complexity_score += 1
+            
+            # Плотность
+            if density == "high":
+                complexity_score += 1
+            
+            # Итоговая сложность
+            if complexity_score >= 3:
+                metrics["complexity"] = "complex"
+            elif complexity_score >= 1:
                 metrics["complexity"] = "medium"
             else:
-                metrics["complexity"] = "complex"
+                metrics["complexity"] = "simple"
             
             # Определяем тип документа
             metrics["document_type"] = _determine_document_type(metrics)
@@ -196,27 +279,38 @@ def analyze_pdf(
 def _determine_document_type(metrics: Dict) -> str:
     """Определяет тип документа по метрикам."""
     
-    # FAQ: много вопросов-ответов
-    if metrics["heading_count"] > 0:
-        heading_ratio = metrics["heading_count"] / max(metrics["total_pages"], 1)
-        if heading_ratio > 3:
+    total_pages = metrics.get("total_pages", 1)
+    heading_count = metrics.get("heading_count", 0)
+    paragraph_count = metrics.get("paragraph_count", 0)
+    list_count = metrics.get("list_count", 0)
+    
+    # FAQ: очень много заголовков относительно страниц
+    if heading_count > 0:
+        heading_ratio = heading_count / max(total_pages, 1)
+        if heading_ratio > 3 and paragraph_count < heading_count * 2:
             return "faq"
     
-    # Учебник: много заголовков, средняя плотность
-    if metrics["heading_count"] > metrics["paragraph_count"] * 0.3:
-        return "textbook"
-    
-    # Статья: много абзацев, мало заголовков
-    if metrics["paragraph_count"] > metrics["heading_count"] * 2:
+    # Статья: много абзацев, мало заголовков (типичная структура)
+    if paragraph_count > 0 and heading_count < paragraph_count * 0.5:
         return "article"
     
     # Отчёт: много таблиц
-    if metrics["has_tables"]:
+    if metrics.get("has_tables"):
         return "report"
     
-    # Книга: высокая плотность
-    if metrics["density"] == "high" and metrics["total_pages"] > 20:
+    # Учебник: структурированный документ с заголовками и абзацами
+    # Но не просто "много заголовков", а сбалансированная структура
+    if heading_count > 3 and paragraph_count > heading_count:
+        # Есть и заголовки, и абзацы - скорее учебник
+        return "textbook"
+    
+    # Книга: высокая плотность И много страниц
+    if metrics.get("density") == "high" and total_pages > 30:
         return "book"
+    
+    # Если есть заголовки но мало абзацев - документ с разметкой
+    if heading_count > 0 and paragraph_count < heading_count:
+        return "document"
     
     return "document"
 
@@ -227,12 +321,14 @@ def _generate_recommendations(metrics: Dict) -> Dict[str, Any]:
     doc_type = metrics.get("document_type", "document")
     density = metrics.get("density", "medium")
     complexity = metrics.get("complexity", "medium")
+    total_pages = metrics.get("total_pages", 1)
     
     rec = {
         "chunk_size": 500,
         "overlap": 50,
         "ocr_enabled": False,
         "llm_enabled": True,
+        "recommended_llm_model": "gpt-4o-mini",
         "chunking_strategy": "hybrid",
         "rationale": []
     }
@@ -276,19 +372,129 @@ def _generate_recommendations(metrics: Dict) -> Dict[str, Any]:
         rec["chunk_size"] = max(rec["chunk_size"], 500)
         rec["rationale"].append("Высокая плотность: увеличиваем чанки")
     
-    # OCR
-    if metrics.get("ocr_needed_pages", 0) > 0:
+    # OCR - только если реально нужен
+    ocr_pages = metrics.get("ocr_needed_pages", 0)
+    if ocr_pages > 0:
         rec["ocr_enabled"] = True
-        rec["rationale"].append(f"OCR нужен для {metrics['ocr_needed_pages']} страниц")
+        rec["rationale"].append(f"🔍 OCR нужен для {ocr_pages} страниц (сканы/изображения)")
+    else:
+        rec["ocr_enabled"] = False
     
-    # LLM для сложных документов
-    if complexity == "complex" or doc_type in ["textbook", "book"]:
-        rec["llm_enabled"] = True
-        rec["rationale"].append("Сложный документ: LLM для качественных метаданных")
+    # Рекомендация по LLM модели
+    # ========================================
+    # Доступные модели (5 вариантов):
+    # - gpt-4o-mini: $0.15/$0.60 - самая дешёвая, быстрая (OpenAI)
+    # - claude-haiku-4-5: $0.25/$1.25 - быстрый Claude, дешёвый
+    # - gpt-4o: $2.50/$10.00 - качественная OpenAI
+    # - claude-sonnet-4-6: $3.00/$15.00 - лучший баланс, 1M контекст
+    # - claude-opus-4-6: $15.00/$75.00 - максимальное качество
+    # ========================================
+    
+    # Определяем характеристики документа
+    has_code = metrics.get("has_code", False)
+    has_equations = metrics.get("has_equations", False)
+    is_large_doc = total_pages > 50
+    is_very_large_doc = total_pages > 100
+    
+    # Формируем 4 варианта рекомендаций
+    # ========================================
+    
+    # Вариант 1: ЭКОНОМИЧНЫЙ (OpenAI - самый дешёвый)
+    economy_model = "gpt-4o-mini"
+    economy_reason = "Самый дешёвый и быстрый (OpenAI)"
+    
+    # Вариант 2: БЮДЖЕТНЫЙ (Claude Haiku - дешёвый Claude)
+    budget_model = "claude-haiku-4-5"
+    budget_reason = "Дешёвый Claude, хорошее качество"
+    
+    # Вариант 3: ОПТИМАЛЬНЫЙ (зависит от типа документа)
+    if has_code:
+        optimal_model = "claude-sonnet-4-6"
+        optimal_reason = "Claude лучше работает с кодом"
+    elif has_equations and complexity == "complex":
+        optimal_model = "claude-sonnet-4-6"
+        optimal_reason = "Claude точнее анализирует формулы"
+    elif is_large_doc:
+        optimal_model = "claude-sonnet-4-6"
+        optimal_reason = "Контекст 1M токенов для больших документов"
+    elif complexity == "complex":
+        optimal_model = "claude-sonnet-4-6"
+        optimal_reason = "Лучшее качество для сложных документов"
+    else:
+        optimal_model = "gpt-4o"
+        optimal_reason = "Баланс качества и скорости (OpenAI)"
+    
+    # Вариант 4: ПРЕМИУМ (максимальное качество)
+    premium_model = "claude-opus-4-6"
+    if has_code:
+        premium_reason = "Максимальное качество анализа кода"
+    elif has_equations:
+        premium_reason = "Лучшее понимание математики"
+    elif complexity == "complex":
+        premium_reason = "Глубокий анализ сложного контента"
+    else:
+        premium_reason = "Максимальное качество метаданных"
+    
+    # Выбираем рекомендованную модель (по умолчанию - оптимальная)
+    # Но для простых документов - экономичная или бюджетная
+    if doc_type in ["faq", "article", "report"] and complexity != "complex":
+        rec["recommended_llm_model"] = economy_model
+        rec["rationale"].append(f"Рекомендуется: {economy_model} ({economy_reason})")
+    else:
+        rec["recommended_llm_model"] = optimal_model
+        rec["rationale"].append(f"Рекомендуется: {optimal_model} ({optimal_reason})")
+    
+    # Добавляем все 4 варианта в рекомендации
+    rec["llm_options"] = {
+        "economy": {
+            "model": economy_model,
+            "reason": economy_reason,
+            "price_per_1m": "$0.15 / $0.60"
+        },
+        "budget": {
+            "model": budget_model,
+            "reason": budget_reason,
+            "price_per_1m": "$0.25 / $1.25"
+        },
+        "optimal": {
+            "model": optimal_model,
+            "reason": optimal_reason,
+            "price_per_1m": "$3.00 / $15.00" if "sonnet" in optimal_model else "$2.50 / $10.00"
+        },
+        "premium": {
+            "model": premium_model,
+            "reason": premium_reason,
+            "price_per_1m": "$15.00 / $75.00"
+        }
+    }
+    
+    # Добавляем обоснование для типа документа
+    if doc_type == "faq":
+        rec["rationale"].append("FAQ: короткие ответы, достаточно простой модели")
+    elif doc_type == "article":
+        rec["rationale"].append("Статья: стандартная обработка")
+    elif doc_type == "report":
+        rec["rationale"].append("Отчёт: табличные данные")
+    elif doc_type in ["textbook", "book"]:
+        rec["rationale"].append(f"{'Сложный' if complexity == 'complex' else 'Стандартный'} учебник/книга")
+    
+    # Дополнительные факторы
+    if has_code:
+        rec["rationale"].append("💡 Код: Claude лучше анализирует программный код")
+    if has_equations:
+        rec["rationale"].append("💡 Формулы: Claude точнее работает с математикой")
+    if is_large_doc:
+        rec["rationale"].append("💡 Большой документ: Claude Sonnet имеет контекст 1M токенов")
     
     # Таблицы
     if metrics.get("has_tables"):
         rec["rationale"].append("Документ содержит таблицы - рекомендуется preserve_tables=True")
+    
+    # Прогноз количества чанков
+    avg_chars_per_chunk = rec["chunk_size"]
+    total_chars = metrics.get("avg_chars_per_page", 2000) * total_pages
+    estimated_chunks = int(total_chars / avg_chars_per_chunk * 1.1)  # +10% запас
+    rec["estimated_chunks"] = max(estimated_chunks, 10)
     
     return rec
 
@@ -500,3 +706,162 @@ if __name__ == "__main__":
     pdf_path = sys.argv[1]
     analysis = analyze_pdf(pdf_path)
     print_analysis(analysis)
+
+
+# Цены API (за 1M токенов, приблизительные для proxyAPI)
+API_PRICES = {
+    "gpt-4o-mini": {"input": 0.15, "output": 0.60, "embedding": 0.02},
+    "gpt-4o": {"input": 2.50, "output": 10.00, "embedding": 0.02},
+    "gpt-4-turbo": {"input": 10.00, "output": 30.00, "embedding": 0.02},
+    "claude-sonnet-4-5": {"input": 3.00, "output": 15.00, "embedding": 0.02},
+    "claude-sonnet-4-6": {"input": 3.00, "output": 15.00, "embedding": 0.02},  # Добавлено
+    "claude-opus-4-6": {"input": 15.00, "output": 75.00, "embedding": 0.02},
+    "claude-haiku-4-5": {"input": 0.25, "output": 1.25, "embedding": 0.02},
+}
+
+
+def estimate_processing_cost(
+    estimated_chunks: int,
+    llm_model: str = "gpt-4o-mini",
+    enable_llm: bool = True,
+    enable_vectorization: bool = True
+) -> Dict[str, float]:
+    """
+    Оценивает стоимость обработки в долларах.
+    
+    Args:
+        estimated_chunks: Прогнозируемое количество чанков.
+        llm_model: Модель LLM.
+        enable_llm: Использовать LLM.
+        enable_vectorization: Использовать векторизацию.
+    
+    Returns:
+        Словарь с оценками стоимости.
+    """
+    result = {
+        "llm_cost": 0.0,
+        "embedding_cost": 0.0,
+        "total_cost": 0.0,
+        "llm_tokens_input": 0,
+        "llm_tokens_output": 0,
+        "embedding_tokens": 0
+    }
+    
+    # LLM стоимость (батчи по 10 чанков)
+    if enable_llm:
+        # ~500 токенов на чанк (вход) + ~100 токенов на чанк (выход)
+        # Батчи по 10 чанков
+        batches = (estimated_chunks + 9) // 10
+        
+        tokens_input = batches * 10 * 500  # ~500 токенов на чанк
+        tokens_output = batches * 10 * 100  # ~100 токенов на чанк
+        
+        # Проверяем, есть ли модель в справочнике
+        if llm_model not in API_PRICES:
+            logger.warning(f"Модель {llm_model} не найдена в API_PRICES, используется gpt-4o-mini")
+            llm_model = "gpt-4o-mini"
+        
+        prices = API_PRICES.get(llm_model, API_PRICES["gpt-4o-mini"])
+        
+        llm_cost = (tokens_input / 1_000_000 * prices["input"] +
+                    tokens_output / 1_000_000 * prices["output"])
+        
+        result["llm_cost"] = round(llm_cost, 4)
+        result["llm_tokens_input"] = tokens_input
+        result["llm_tokens_output"] = tokens_output
+    
+    # Эмбеддинги
+    if enable_vectorization:
+        # ~150 токенов на чанк (короткий текст)
+        embedding_tokens = estimated_chunks * 150
+        embedding_cost = embedding_tokens / 1_000_000 * 0.02  # text-embedding-3-small
+        
+        result["embedding_cost"] = round(embedding_cost, 4)
+        result["embedding_tokens"] = embedding_tokens
+    
+    result["total_cost"] = round(result["llm_cost"] + result["embedding_cost"], 4)
+    
+    return result
+
+
+def estimate_processing_time(
+    total_pages: int,
+    enable_llm: bool = True,
+    enable_vectorization: bool = True,
+    llm_model: str = "gpt-4o-mini",
+    has_cache: bool = False
+) -> Dict[str, float]:
+    """
+    Оценивает время обработки в секундах.
+    
+    Args:
+        total_pages: Количество страниц.
+        enable_llm: Использовать LLM.
+        enable_vectorization: Использовать векторизацию.
+        llm_model: Модель LLM.
+        has_cache: Есть ли кэш эмбеддингов.
+    
+    Returns:
+        Словарь с оценками времени.
+    """
+    result = {
+        "extraction_time": 0.0,
+        "llm_time": 0.0,
+        "vectorization_time": 0.0,
+        "total_time": 0.0
+    }
+    
+    # Извлечение текста: ~0.1 сек/страница
+    result["extraction_time"] = total_pages * 0.1
+    
+    # LLM: ~12-15 сек/страница (gpt-4o-mini), ~15-20 сек/страница (gpt-4o)
+    if enable_llm:
+        if "mini" in llm_model or "haiku" in llm_model:
+            result["llm_time"] = total_pages * 12
+        else:
+            result["llm_time"] = total_pages * 18
+    
+    # Векторизация: ~18 сек/страница без кэша, ~0.3 сек/страница с кэшем
+    if enable_vectorization:
+        if has_cache:
+            result["vectorization_time"] = total_pages * 0.3
+        else:
+            result["vectorization_time"] = total_pages * 18
+    
+    result["total_time"] = (result["extraction_time"] + 
+                            result["llm_time"] + 
+                            result["vectorization_time"])
+    
+    return result
+
+
+def format_time(seconds: float) -> str:
+    """Форматирует время в читаемый вид."""
+    if seconds < 60:
+        return f"{int(seconds)} сек"
+    elif seconds < 3600:
+        mins = int(seconds // 60)
+        secs = int(seconds % 60)
+        return f"{mins}м {secs}с"
+    else:
+        hours = int(seconds // 3600)
+        mins = int((seconds % 3600) // 60)
+        return f"{hours}ч {mins}м"
+
+
+def format_cost(cost: float) -> str:
+    """Форматирует стоимость в читаемый вид."""
+    if cost < 0.01:
+        # Меньше 1 цента - показываем как "~1¢"
+        return "~1¢"
+    elif cost < 0.10:
+        # Меньше 10 центов - показываем в центах
+        cents = cost * 100
+        return f"{cents:.1f}¢"
+    elif cost < 1.0:
+        # Меньше $1 - показываем в центах
+        cents = cost * 100
+        return f"{cents:.0f}¢"
+    else:
+        # Больше $1 - показываем в долларах
+        return f"${cost:.2f}"

@@ -443,7 +443,7 @@ class SqueezerApp:
         self.root.protocol("WM_DELETE_WINDOW", self._on_closing)
     
     def _select_files(self) -> None:
-        """Выбор файлов для обработки."""
+        """Выбор файлов для обработки с автоматическим анализом."""
         file_paths = filedialog.askopenfilenames(
             title=self.translations['load_files'],
             filetypes=[('PDF files', '*.pdf'), ('All files', '*.*')]
@@ -454,6 +454,324 @@ class SqueezerApp:
         
         self.selected_files = [Path(p) for p in file_paths]
         self._update_files_list()
+    
+        # Автоматический анализ первого файла
+        if self.selected_files:
+            self._auto_analyze_file(self.selected_files[0])
+    
+    def _auto_analyze_file(self, file_path: Path) -> None:
+        """
+        Автоматический анализ файла с предложением оптимизации.
+        Показывает 3 варианта LLM модели на выбор.
+        
+        Args:
+            file_path: Путь к файлу для анализа.
+        """
+        self._log(f"🔍 Автоанализ: {file_path.name}")
+        
+        try:
+            # Быстрый анализ без LLM
+            from src.pdf_analyzer import (
+                analyze_pdf, 
+                estimate_processing_cost, 
+                estimate_processing_time,
+                format_time, 
+                format_cost
+            )
+
+            analysis = analyze_pdf(
+                str(file_path),
+                sample_pages=5,
+                use_llm=False  # Быстрый анализ без LLM
+            )
+            
+            if "error" in analysis:
+                self._log(f"⚠️ Анализ не удался: {analysis['error']}")
+                return
+            
+            rec = analysis.get("recommendations", {})
+            total_pages = analysis.get("total_pages", 0)
+            estimated_chunks_per_file = rec.get("estimated_chunks", 10)
+            
+            # Если выбрано несколько файлов - умножаем на количество
+            total_files = len(self.selected_files)
+            total_ocr_pages = analysis.get('ocr_needed_pages', 0)  # OCR из первого файла
+            
+            if total_files > 1:
+                # Суммируем страницы и OCR всех файлов для более точной оценки
+                total_pages_all = 0
+                total_ocr_all = total_ocr_pages  # Начинаем с первого файла
+                
+                for i, fp in enumerate(self.selected_files):
+                    try:
+                        # Анализируем каждый файл для подсчёта OCR
+                        if i > 0:  # Первый уже проанализирован
+                            file_analysis = analyze_pdf(str(fp), sample_pages=5, use_llm=False)
+                            total_ocr_all += file_analysis.get('ocr_needed_pages', 0)
+                            total_pages_all += file_analysis.get('total_pages', 0)
+                        else:
+                            total_pages_all += total_pages
+                    except Exception:
+                        total_pages_all += 10
+                
+                # Обновляем общее количество OCR страниц
+                total_ocr_pages = total_ocr_all
+                
+                # Пересчитываем чанки пропорционально
+                estimated_chunks = int(estimated_chunks_per_file * total_pages_all / max(total_pages, 1))
+                self._log(f"📊 Множество файлов: {total_files} шт, {total_pages_all} стр, ~{estimated_chunks} чанков")
+                if total_ocr_all > 0:
+                    self._log(f"🔍 OCR нужен для {total_ocr_all} страниц (все файлы)")
+            else:
+                estimated_chunks = estimated_chunks_per_file
+            
+            # Получаем 4 варианта LLM
+            llm_options = rec.get("llm_options", {})
+            economy = llm_options.get("economy", {})
+            budget = llm_options.get("budget", {})
+            optimal = llm_options.get("optimal", {})
+            premium = llm_options.get("premium", {})
+            
+            # Оценки стоимости для каждого варианта (полная стоимость RAG-базы)
+            enable_llm = self.enable_llm_var.get()
+            enable_vec = self.enable_vectorization_var.get()
+            
+            self._log(f"📊 Расчёт стоимости: чанков={estimated_chunks}, LLM={enable_llm}, Vec={enable_vec}")
+            
+            cost_economy = estimate_processing_cost(
+                estimated_chunks, economy.get("model", "gpt-4o-mini"),
+                enable_llm=enable_llm, 
+                enable_vectorization=enable_vec
+            )
+            self._log(f"   Economy ({economy.get('model')}): LLM=${cost_economy['llm_cost']}, Vec=${cost_economy['embedding_cost']}, Total=${cost_economy['total_cost']}")
+            
+            cost_budget = estimate_processing_cost(
+                estimated_chunks, budget.get("model", "claude-haiku-4-5"),
+                enable_llm=enable_llm, 
+                enable_vectorization=enable_vec
+            )
+            self._log(f"   Budget ({budget.get('model')}): LLM=${cost_budget['llm_cost']}, Vec=${cost_budget['embedding_cost']}, Total=${cost_budget['total_cost']}")
+            
+            cost_optimal = estimate_processing_cost(
+                estimated_chunks, optimal.get("model", "claude-sonnet-4-6"),
+                enable_llm=enable_llm, 
+                enable_vectorization=enable_vec
+            )
+            self._log(f"   Optimal ({optimal.get('model')}): LLM=${cost_optimal['llm_cost']}, Vec=${cost_optimal['embedding_cost']}, Total=${cost_optimal['total_cost']}")
+            
+            cost_premium = estimate_processing_cost(
+                estimated_chunks, premium.get("model", "claude-opus-4-6"),
+                enable_llm=enable_llm, 
+                enable_vectorization=enable_vec
+            )
+            self._log(f"   Premium ({premium.get('model')}): LLM=${cost_premium['llm_cost']}, Vec=${cost_premium['embedding_cost']}, Total=${cost_premium['total_cost']}")
+
+            # Оценка времени (для рекомендуемой модели)
+            time_est = estimate_processing_time(
+                total_pages,
+                enable_llm=self.enable_llm_var.get(),
+                enable_vectorization=self.enable_vectorization_var.get(),
+                llm_model=rec.get("recommended_llm_model", "gpt-4o-mini")
+            )
+
+            # Формируем сообщение
+            doc_type_ru = {
+                "textbook": "Учебник",
+                "article": "Статья",
+                "faq": "FAQ",
+                "report": "Отчёт",
+                "book": "Книга",
+                "document": "Документ"
+            }.get(analysis.get("document_type", "document"), "Документ")
+            
+            complexity_ru = {
+                "simple": "Простая",
+                "medium": "Средняя",
+                "complex": "Сложная"
+            }.get(analysis.get("complexity", "medium"), "Средняя")
+            
+            # Формируем красивое сообщение с 4 вариантами
+            msg = f"📄 Документ: {file_path.name}\n"
+            msg += f"{'─'*60}\n\n"
+            msg += f"📋 Тип: {doc_type_ru} | Страниц: {total_pages} | Сложность: {complexity_ru}\n\n"
+            
+            msg += f"📊 Структура:\n"
+            msg += f"   • Заголовков: {analysis.get('heading_count', 0)}\n"
+            msg += f"   • Абзацев: {analysis.get('paragraph_count', 0)}\n"
+            msg += f"   • Таблиц: {'Да' if analysis.get('has_tables') else 'Нет'}\n"
+            msg += f"   • Формул: {'Да' if analysis.get('has_equations') else 'Нет'}\n"
+            msg += f"   • Кода: {'Да' if analysis.get('has_code') else 'Нет'}\n"
+            
+            # OCR - только если нужен (суммарно для всех файлов)
+            if total_ocr_pages > 0:
+                msg += f"   • OCR: Требуется для {total_ocr_pages} стр.\n"
+            msg += "\n"
+            
+            msg += f"🎯 Параметры чанкинга:\n"
+            msg += f"   • Размер: {rec.get('chunk_size', 500)} (текущий: {self.chunk_size_var.get()})\n"
+            msg += f"   • Overlap: {rec.get('overlap', 50)} (текущий: {self.overlap_var.get()})\n"
+            if total_ocr_pages > 0:
+                msg += f"   • OCR: Включён ({total_ocr_pages} стр.)\n"
+            msg += "\n"
+            
+            msg += f"{'─'*60}\n"
+            msg += f"🤖 ВЫБОР LLM МОДЕЛИ ДЛЯ RAG-БАЗЫ:\n"
+            msg += f"{'─'*60}\n\n"
+            
+            # Вариант 1: Экономичный
+            msg += f"1️⃣ ЭКОНОМИЧНЫЙ: {economy.get('model', 'gpt-4o-mini')}\n"
+            msg += f"   💰 Цена: {economy.get('price_per_1m', '$0.15/$0.60')} за 1M токенов\n"
+            msg += f"   📊 Стоимость RAG-базы:\n"
+            if self.enable_llm_var.get():
+                msg += f"      • LLM: {format_cost(cost_economy['llm_cost'])}\n"
+            if self.enable_vectorization_var.get():
+                msg += f"      • Векторы: {format_cost(cost_economy['embedding_cost'])}\n"
+            msg += f"      • ИТОГО: {format_cost(cost_economy['total_cost'])}\n"
+            msg += f"   ✨ {economy.get('reason', 'Дёшево и быстро')}\n\n"
+            
+            # Вариант 2: Бюджетный (Claude Haiku)
+            msg += f"2️⃣ БЮДЖЕТНЫЙ: {budget.get('model', 'claude-haiku-4-5')}\n"
+            msg += f"   💰 Цена: {budget.get('price_per_1m', '$0.25/$1.25')} за 1M токенов\n"
+            msg += f"   📊 Стоимость RAG-базы:\n"
+            if self.enable_llm_var.get():
+                msg += f"      • LLM: {format_cost(cost_budget['llm_cost'])}\n"
+            if self.enable_vectorization_var.get():
+                msg += f"      • Векторы: {format_cost(cost_budget['embedding_cost'])}\n"
+            msg += f"      • ИТОГО: {format_cost(cost_budget['total_cost'])}\n"
+            msg += f"   ✨ {budget.get('reason', 'Дешёвый Claude')}\n\n"
+            
+            # Вариант 3: Оптимальный
+            recommended = rec.get("recommended_llm_model", "gpt-4o-mini")
+            rec_marker = " ⭐ РЕКОМЕНДУЕТСЯ" if optimal.get("model") == recommended else ""
+            msg += f"3️⃣ ОПТИМАЛЬНЫЙ{rec_marker}: {optimal.get('model', 'claude-sonnet-4-6')}\n"
+            msg += f"   💰 Цена: {optimal.get('price_per_1m', '$3.00/$15.00')} за 1M токенов\n"
+            msg += f"   📊 Стоимость RAG-базы:\n"
+            if self.enable_llm_var.get():
+                msg += f"      • LLM: {format_cost(cost_optimal['llm_cost'])}\n"
+            if self.enable_vectorization_var.get():
+                msg += f"      • Векторы: {format_cost(cost_optimal['embedding_cost'])}\n"
+            msg += f"      • ИТОГО: {format_cost(cost_optimal['total_cost'])}\n"
+            msg += f"   ✨ {optimal.get('reason', 'Баланс цены и качества')}\n\n"
+            
+            # Вариант 4: Премиум
+            msg += f"4️⃣ ПРЕМИУМ: {premium.get('model', 'claude-opus-4-6')}\n"
+            msg += f"   💰 Цена: {premium.get('price_per_1m', '$15.00/$75.00')} за 1M токенов\n"
+            msg += f"   📊 Стоимость RAG-базы:\n"
+            if self.enable_llm_var.get():
+                msg += f"      • LLM: {format_cost(cost_premium['llm_cost'])}\n"
+            if self.enable_vectorization_var.get():
+                msg += f"      • Векторы: {format_cost(cost_premium['embedding_cost'])}\n"
+            msg += f"      • ИТОГО: {format_cost(cost_premium['total_cost'])}\n"
+            msg += f"   ✨ {premium.get('reason', 'Максимальное качество')}\n\n"
+            
+            msg += f"{'─'*60}\n"
+            msg += f"📈 Прогноз: ~{estimated_chunks} чанков, время: {format_time(time_est['total_time'])}\n"
+            msg += f"{'─'*60}\n\n"
+            
+            # Обновляем rationale с правильным количеством OCR
+            if rec.get("rationale"):
+                msg += f"💡 Почему:\n"
+                for r in rec["rationale"][:4]:
+                    # Заменяем старое сообщение про OCR на новое
+                    if "OCR нужен для" in r and total_ocr_pages > 0:
+                        msg += f"   • 🔍 OCR нужен для {total_ocr_pages} страниц (все файлы)\n"
+                    else:
+                        msg += f"   • {r}\n"
+            
+            # Создаём кастомный диалог с 4 кнопками
+            self._show_llm_selection_dialog(
+                file_path, rec, economy, optimal, premium, msg, total_ocr_pages
+            )
+
+        except Exception as e:
+            self._log(f"⚠️ Ошибка автоанализа: {str(e)}")
+            logger.error(f"Ошибка автоанализа: {e}")
+    
+    def _show_llm_selection_dialog(self, file_path: Path, rec: dict, 
+                                     economy: dict, optimal: dict, premium: dict,
+                                     msg: str, total_ocr_pages: int = 0) -> None:
+        """Показывает диалог выбора LLM модели с 4 вариантами."""
+        
+        # Получаем все 4 варианта
+        llm_options = rec.get("llm_options", {})
+        budget = llm_options.get("budget", {})
+        
+        # Создаём кастомное окно
+        dialog = tk.Toplevel(self.root)
+        dialog.title("🤖 Выбор LLM модели для RAG-базы")
+        dialog.geometry("620x750")
+        dialog.transient(self.root)
+        dialog.grab_set()
+        
+        # Текст с анализом
+        from tkinter.scrolledtext import ScrolledText
+        text = ScrolledText(dialog, width=72, height=30, wrap=tk.WORD)
+        text.pack(padx=10, pady=10, fill=tk.BOTH, expand=True)
+        text.insert(tk.END, msg)
+        text.config(state=tk.DISABLED)
+        
+        # Рамка для кнопок (2 ряда по 2 кнопки)
+        btn_frame = ttk.Frame(dialog)
+        btn_frame.pack(pady=5)
+        
+        selected_model = [None]  # Используем список для mutable
+        
+        def on_economy():
+            selected_model[0] = economy.get("model", "gpt-4o-mini")
+            dialog.destroy()
+            self._apply_selected_model(file_path, rec, selected_model[0], total_ocr_pages)
+        
+        def on_budget():
+            selected_model[0] = budget.get("model", "claude-haiku-4-5")
+            dialog.destroy()
+            self._apply_selected_model(file_path, rec, selected_model[0], total_ocr_pages)
+        
+        def on_optimal():
+            selected_model[0] = optimal.get("model", "claude-sonnet-4-6")
+            dialog.destroy()
+            self._apply_selected_model(file_path, rec, selected_model[0], total_ocr_pages)
+        
+        def on_premium():
+            selected_model[0] = premium.get("model", "claude-opus-4-6")
+            dialog.destroy()
+            self._apply_selected_model(file_path, rec, selected_model[0], total_ocr_pages)
+        
+        def on_skip():
+            dialog.destroy()
+            self._log("ℹ️ Используются текущие параметры")
+        
+        # 1-й ряд кнопок
+        row1 = ttk.Frame(btn_frame)
+        row1.pack(pady=3)
+        ttk.Button(row1, text="1️⃣ Экономичный", command=on_economy, width=18).pack(side=tk.LEFT, padx=5)
+        ttk.Button(row1, text="2️⃣ Бюджетный", command=on_budget, width=18).pack(side=tk.LEFT, padx=5)
+        
+        # 2-й ряд кнопок
+        row2 = ttk.Frame(btn_frame)
+        row2.pack(pady=3)
+        ttk.Button(row2, text="3️⃣ Оптимальный ⭐", command=on_optimal, width=18).pack(side=tk.LEFT, padx=5)
+        ttk.Button(row2, text="4️⃣ Премиум", command=on_premium, width=18).pack(side=tk.LEFT, padx=5)
+        
+        # Кнопка пропуска
+        ttk.Button(dialog, text="Пропустить (текущие параметры)", command=on_skip).pack(pady=10)
+    
+    def _apply_selected_model(self, file_path: Path, rec: dict, selected_model: str, total_ocr_pages: int = 0) -> None:
+        """Применяет выбранную модель и параметры."""
+        # Применяем параметры чанкинга
+        self.chunk_size_var.set(rec.get('chunk_size', 500))
+        self.overlap_var.set(rec.get('overlap', 50))
+        
+        # Устанавливаем выбранную LLM модель
+        for i, (model_id, model_name) in enumerate(LLM_MODELS):
+            if model_id == selected_model:
+                self.llm_model_combo.current(i)
+                break
+        
+        # OCR - включаем если нужен
+        if total_ocr_pages > 0 or rec.get('ocr_enabled'):
+            self.settings['ocr_enabled'] = True
+        
+        self._log(f"✅ Применено: chunk={rec.get('chunk_size')}, overlap={rec.get('overlap')}, LLM={selected_model}, OCR={self.settings['ocr_enabled']}")
     
     def _update_files_list(self) -> None:
         """Обновляет список выбранных файлов."""
@@ -495,7 +813,8 @@ class SqueezerApp:
                 use_llm = False
             
             # Вызываем анализ
-            llm_model = self.llm_model_var.get() if use_llm else "gpt-4o"
+            idx = self.llm_model_combo.current()
+            llm_model = LLM_MODELS[idx][0] if idx >= 0 else "gpt-4o"
             
             analysis = analyze_pdf(
                 str(file_path),
@@ -597,6 +916,71 @@ class SqueezerApp:
         self.log_text.see(tk.END)
         logger.info(message)
     
+    def _check_api_balance(self) -> dict:
+        """
+        Проверяет доступность и баланс API.
+        
+        Returns:
+            Словарь с результатами проверки:
+            - openai_ok: bool - доступен ли OpenAI API
+            - anthropic_ok: bool - доступен ли Anthropic API  
+            - error_message: str - сообщение об ошибке (если есть)
+        """
+        import requests
+        
+        result = {
+            'openai_ok': False,
+            'anthropic_ok': False,
+            'error_message': None
+        }
+        
+        api_key = os.getenv("OPENAI_API_KEY")
+        if not api_key:
+            result['error_message'] = "OPENAI_API_KEY не найден в переменных окружения"
+            return result
+
+        # Проверяем OpenAI (для эмбеддингов)
+        try:
+            response = requests.get(
+                "https://openai.api.proxyapi.ru/v1/models",
+                headers={"Authorization": f"Bearer {api_key}"},
+                timeout=5
+            )
+            if response.status_code == 200:
+                result['openai_ok'] = True
+            elif response.status_code == 402:
+                result['error_message'] = "Недостаточно средств на балансе API (OpenAI)"
+            elif response.status_code == 401:
+                result['error_message'] = "Неверный API ключ"
+            else:
+                result['error_message'] = f"Ошибка API OpenAI: {response.status_code}"
+        except requests.exceptions.Timeout:
+            result['error_message'] = "Таймаут подключения к API OpenAI"
+        except Exception as e:
+            result['error_message'] = f"Ошибка подключения к API OpenAI: {str(e)}"
+        
+        # Проверяем Anthropic (для Claude) - используем тот же endpoint
+        try:
+            response = requests.get(
+                "https://api.proxyapi.ru/anthropic/v1/models",
+                headers={"x-api-key": api_key},
+                timeout=5
+            )
+            if response.status_code == 200:
+                result['anthropic_ok'] = True
+            elif response.status_code == 402 and not result['error_message']:
+                result['error_message'] = "Недостаточно средств на балансе API (Anthropic)"
+            elif response.status_code == 401 and not result['error_message']:
+                result['error_message'] = "Неверный API ключ"
+        except requests.exceptions.Timeout:
+            if not result['error_message']:
+                result['error_message'] = "Таймаут подключения к API Anthropic"
+        except Exception as e:
+            if not result['error_message']:
+                result['error_message'] = f"Ошибка подключения к API Anthropic: {str(e)}"
+        
+        return result
+
     def _process_all_files(self) -> None:
         """Обрабатывает все выбранные файлы (с опцией параллельной обработки)."""
         if not self.selected_files:
@@ -605,7 +989,7 @@ class SqueezerApp:
         
         self._save_settings()
         
-        # Спрашиваем про режим обработки
+        # Спрашиваем про режим обработки ДО блокировки GUI
         if len(self.selected_files) > 1:
             use_parallel = messagebox.askyesno(
                 "Режим обработки",
@@ -616,53 +1000,532 @@ class SqueezerApp:
         else:
             use_parallel = False
 
+        # Проверяем API, если включены LLM или векторизация
+        if self.settings['enable_llm'] or self.settings['enable_vectorization']:
+            self._log("Проверка доступности API...")
+            api_check = self._check_api_balance()
+            
+            if api_check['error_message']:
+                # Показываем ошибку
+                error_msg = api_check['error_message']
+                self._log(f"❌ Ошибка API: {error_msg}")
+                
+                # Предлагаем продолжить без API
+                if self.settings['enable_llm'] or self.settings['enable_vectorization']:
+                    proceed = messagebox.askyesno(
+                        "Ошибка API",
+                        f"{error_msg}\n\n"
+                        "Продолжить обработку БЕЗ LLM и векторизации?\n"
+                        "(Будет выполнен только чанкинг)"
+                    )
+                    if proceed:
+                        self.settings['enable_llm'] = False
+                        self.settings['enable_vectorization'] = False
+                        self._log("Обработка продолжится без LLM и векторизации")
+                    else:
+                        return
+            else:
+                # API работает
+                status = []
+                if api_check['openai_ok']:
+                    status.append("OpenAI ✓")
+                if api_check['anthropic_ok']:
+                    status.append("Anthropic ✓")
+                self._log(f"✅ API доступен: {', '.join(status)}")
+
         # Блокируем кнопки
         self.process_btn.config(state='disabled')
         self.load_files_btn.config(state='disabled')
         self.clear_btn.config(state='disabled')
         
-        # Запускаем прогресс
-        self.progress.start()
+        # Сбрасываем флаг отмены
+        self._cancel_requested = False
+        from src.llm_chunker import clear_cancel
+        clear_cancel()
         
-        total_chunks = 0
-        processed_count = 0
+        # Добавляем кнопку отмены
+        if not hasattr(self, 'cancel_btn'):
+            self.cancel_btn = ttk.Button(
+                self.root.winfo_children()[0],
+                text="❌ Отменить",
+                command=self._cancel_processing
+            )
+        self.cancel_btn.grid(row=5, column=0, sticky=tk.E, pady=(0, 10))
+
+        # Инициализируем прогресс
+        self.progress.config(mode='determinate', maximum=100, value=0)
+        self._progress_value = 0
+        self._current_stage = "Инициализация..."
+        self._estimated_time = 60  # Дефолтная оценка 1 минута
         
-        if use_parallel and len(self.selected_files) > 1:
-            # Параллельная обработка
-            self._log(f"Параллельная обработка {len(self.selected_files)} файлов...")
-            total_chunks, processed_count = self._process_parallel()
+        # Загружаем статистику для оценки времени
+        self._load_processing_stats()
+        
+        # Оцениваем время ДО запуска потока
+        total_pages = 0
+        for fp in self.selected_files:
+            try:
+                import fitz  # PyMuPDF
+                doc = fitz.open(str(fp))
+                total_pages += len(doc)
+                doc.close()
+            except Exception:
+                total_pages += 10  # По умолчанию
+        
+        self._estimated_time = self._estimate_time(total_pages)
+        self._total_pages = total_pages
+        
+        # Логируем оценку
+        mins = int(self._estimated_time // 60)
+        secs = int(self._estimated_time % 60)
+        stats_summary = self._get_stats_summary()
+        self._log(f"📄 Страниц: {total_pages} | ⏱️ Оценка: ~{mins}м {secs}с")
+        self._log(stats_summary)
+        
+        # Запускаем обработку в отдельном потоке
+        import threading
+        
+        self._processing_thread = threading.Thread(
+            target=self._process_in_thread,
+            args=(use_parallel,),
+            daemon=True
+        )
+        self._processing_thread.start()
+        
+        # Запускаем мониторинг прогресса
+        self._monitor_progress()
+    
+    def _load_processing_stats(self) -> None:
+        """Загружает статистику обработки для оценки времени."""
+        import json
+        stats_file = Path("logs/processing_stats.json")
+        self._processing_stats = {
+            "sessions": [],  # История сессий (последние 20)
+            "averages": {}   # Усреднённые значения по типам
+        }
+        
+        if stats_file.exists():
+            try:
+                with open(stats_file, 'r', encoding='utf-8') as f:
+                    data = json.load(f)
+                    # Совместимость со старым форматом
+                    if "sessions" not in data:
+                        # Конвертируем старый формат
+                        self._processing_stats["averages"] = data
+                    else:
+                        self._processing_stats = data
+            except Exception:
+                pass
+    
+    def _save_processing_stats(self, pages: int, chunks: int, duration: float, 
+                                use_llm: bool, use_vec: bool) -> None:
+        """Сохраняет статистику обработки с историей сессий."""
+        import json
+        stats_file = Path("logs/processing_stats.json")
+        stats_file.parent.mkdir(exist_ok=True)
+        
+        # Ключ для типа обработки
+        key = f"llm_{use_llm}_vec_{use_vec}"
+        
+        # Добавляем новую сессию
+        session = {
+            "timestamp": datetime.now().isoformat(),
+            "pages": pages,
+            "chunks": chunks,
+            "duration": duration,
+            "time_per_page": duration / pages if pages > 0 else 0,
+            "type": key
+        }
+        
+        # Добавляем в историю
+        if "sessions" not in self._processing_stats:
+            self._processing_stats["sessions"] = []
+        
+        self._processing_stats["sessions"].append(session)
+        
+        # Оставляем только последние 20 сессий
+        self._processing_stats["sessions"] = self._processing_stats["sessions"][-20:]
+        
+        # Пересчитываем средние значения по типам
+        type_sessions = {}
+        for s in self._processing_stats["sessions"]:
+            t = s["type"]
+            if t not in type_sessions:
+                type_sessions[t] = []
+            type_sessions[t].append(s)
+        
+        # Вычисляем средневзвешенное время (с учётом объёма)
+        self._processing_stats["averages"] = {}
+        for t, sessions in type_sessions.items():
+            total_pages = sum(s["pages"] for s in sessions)
+            total_duration = sum(s["duration"] for s in sessions)
+            
+            # Средневзвешенное время на страницу
+            avg_time = total_duration / total_pages if total_pages > 0 else 5.0
+            
+            # Медианное время (более устойчиво к выбросам)
+            times = sorted([s["time_per_page"] for s in sessions])
+            median_time = times[len(times) // 2] if times else 5.0
+            
+            self._processing_stats["averages"][t] = {
+                "sessions_count": len(sessions),
+                "total_pages": total_pages,
+                "avg_time_per_page": round(avg_time, 2),
+                "median_time_per_page": round(median_time, 2),
+                "min_time_per_page": round(min(times), 2) if times else 5.0,
+                "max_time_per_page": round(max(times), 2) if times else 5.0
+            }
+        
+        try:
+            with open(stats_file, 'w', encoding='utf-8') as f:
+                json.dump(self._processing_stats, f, indent=2, ensure_ascii=False)
+        except Exception:
+            pass
+    
+    def _estimate_time(self, total_pages: int) -> float:
+        """
+        Оценивает время обработки в секундах на основе статистики.
+        Использует медианное время (более устойчиво к выбросам).
+        
+        Реальные данные из теста 2026-03-23:
+        - 15 страниц, 204 чанка
+        - LLM (gpt-4o-mini): ~3.8 мин (~15 сек/страница)
+        - Векторизация: ~4.5 мин (~18 сек/страница) - БЕЗ кэша
+        - Итого: ~33 сек/страница с LLM + векторизацией
+        """
+        key = f"llm_{self.settings['enable_llm']}_vec_{self.settings['enable_vectorization']}"
+        
+        # Получаем статистику по типу обработки
+        if "averages" in self._processing_stats and key in self._processing_stats["averages"]:
+            stats = self._processing_stats["averages"][key]
+            # Используем медианное время (более предсказуемо)
+            base_time = stats.get("median_time_per_page", 5.0)
+            sessions_count = stats.get("sessions_count", 0)
+            
+            # Если мало сессий, добавляем запас
+            if sessions_count < 3:
+                base_time *= 1.15  # +15% запас
         else:
-            # Последовательная обработка
-            for i, file_path in enumerate(self.selected_files, 1):
-                self.progress_label.config(text=self.translations['processing_file'].format(file_path.name))
-                self._log(f"Обработка [{i}/{len(self.selected_files)}]: {file_path.name}")
-                
-                chunks = self._process_single_file(file_path)
-                total_chunks += chunks
-                processed_count += 1
-                
-                # Добавляем в историю
-                self._add_to_history(file_path)
+            # Значения по умолчанию на основе реальных измерений
+            base_time = 1.0  # Базовое время на страницу (извлечение текста + чанкинг)
+            if self.settings['enable_llm']:
+                # LLM добавляет ~15 сек/страница (gpt-4o-mini, батчи по 10 чанков)
+                base_time += 15.0
+            if self.settings['enable_vectorization']:
+                # Векторизация добавляет ~18 сек/страница БЕЗ кэша
+                # С кэшем ~0.3 сек/страница
+                base_time += 18.0
         
-        # Останавливаем прогресс
-        self.progress.stop()
-        self.progress_label.config(text=self.translations['all_processed'])
+        estimated = base_time * total_pages
+        
+        # Корректировка на кэш эмбеддингов
+        if self.settings['enable_vectorization']:
+            try:
+                from src.embedding_cache import get_embedding_cache
+                cache = get_embedding_cache()
+                cache_stats = cache.get_stats()
+                cached_entries = cache_stats.get('total_entries', 0)
+                if cached_entries > 100:
+                    # Если есть кэш с достаточным количеством записей
+                    # Экономия ~95% времени на векторизации
+                    cache_savings = min(cached_entries / 500, 0.95)  # Максимум 95% экономии
+                    vec_time = 18.0 * total_pages  # Время векторизации без кэша
+                    saved_time = vec_time * cache_savings
+                    estimated -= saved_time
+            except Exception:
+                pass
+        
+        return estimated
+    
+    def _get_stats_summary(self) -> str:
+        """Возвращает сводку статистики для отображения."""
+        key = f"llm_{self.settings['enable_llm']}_vec_{self.settings['enable_vectorization']}"
+        
+        if "averages" in self._processing_stats and key in self._processing_stats["averages"]:
+            stats = self._processing_stats["averages"][key]
+            sessions = stats.get("sessions_count", 0)
+            median = stats.get("median_time_per_page", 0)
+            min_t = stats.get("min_time_per_page", 0)
+            max_t = stats.get("max_time_per_page", 0)
+            
+            if sessions > 0:
+                return f"📊 Статистика: {sessions} сессий, ~{median:.1f}с/стр ({min_t:.1f}-{max_t:.1f}с)"
+        
+        return "📊 Статистика: недостаточно данных"
+    
+    def _cancel_processing(self) -> None:
+        """Отмена обработки."""
+        self._cancel_requested = True
+        # Отправляем сигнал отмены в LLM
+        from src.llm_chunker import request_cancel
+        request_cancel()
+        self._log("Запрошена отмена обработки...")
+        self.cancel_btn.config(state='disabled')
+    
+    def _monitor_progress(self) -> None:
+        """Мониторинг прогресса обработки."""
+        import time
+        
+        # Инициализируем start_time только один раз
+        if not hasattr(self, '_monitor_start_time'):
+            self._monitor_start_time = time.time()
+        
+        if hasattr(self, '_progress_value'):
+            self.progress['value'] = self._progress_value
+        
+        # Формируем текст статуса
+        current_stage = getattr(self, '_current_stage', 'Инициализация...')
+        progress_pct = getattr(self, '_progress_value', 0)
+        
+        # Время с начала мониторинга
+        elapsed = time.time() - self._monitor_start_time
+        estimated_time = getattr(self, '_estimated_time', 60)
+        
+        # Countdown: оставшееся время
+        remaining = estimated_time - elapsed
+        
+        if remaining > 0:
+            mins = int(remaining // 60)
+            secs = int(remaining % 60)
+            time_str = f"~{mins}м {secs}с"
+        else:
+            # Адаптивная оценка после превышения
+            if progress_pct > 10:
+                # Пересчёт на основе текущей скорости
+                real_total = elapsed / (progress_pct / 100)
+                remaining_real = real_total - elapsed
+                if remaining_real > 0:
+                    mins = int(remaining_real // 60)
+                    secs = int(remaining_real % 60)
+                    time_str = f"~{mins}м {secs}с (уточн.)"
+                else:
+                    time_str = "завершение..."
+            else:
+                time_str = "завершение..."
+        
+        # Обновляем label с текущей операцией
+        self.progress_label.config(
+            text=f"{current_stage} | {progress_pct:.0f}% | Осталось: {time_str}"
+        )
+        
+        # Проверяем, жив ли поток
+        if hasattr(self, '_processing_thread') and self._processing_thread.is_alive():
+            self.root.after(500, self._monitor_progress)  # Обновляем каждые 500мс
+        else:
+            # Поток завершён
+            self._finish_processing()
+    
+    def _finish_processing(self) -> None:
+        """Завершение обработки (вызывается из главного потока)."""
+        import time
+        
+        # Скрываем кнопку отмены
+        if hasattr(self, 'cancel_btn'):
+            self.cancel_btn.grid_forget()
         
         # Разблокируем кнопки
         self.process_btn.config(state='normal')
         self.load_files_btn.config(state='normal')
         self.clear_btn.config(state='normal')
         
-        # Итоговое сообщение
-        result_msg = f"{self.translations['all_processed']}\n\n"
-        result_msg += f"{self.translations['total_chunks']}: {total_chunks}\n"
-        result_msg += f"Обработано файлов: {processed_count}/{len(self.selected_files)}\n"
-        result_msg += f"\nРезультаты сохранены в: {self.settings['output_dir']}"
+        # Вычисляем время обработки
+        elapsed_str = ""
+        if hasattr(self, '_monitor_start_time'):
+            elapsed = time.time() - self._monitor_start_time
+            mins = int(elapsed // 60)
+            secs = int(elapsed % 60)
+            elapsed_str = f"\nВремя обработки: {mins}м {secs}с"
         
-        self._log(f"Обработка завершена. Чанков: {total_chunks}")
+        # Показываем результат
+        if hasattr(self, '_processing_result'):
+            result = self._processing_result
+            if result.get('cancelled'):
+                self.progress_label.config(text="Обработка отменена")
+                self._log("Обработка отменена пользователем")
+            else:
+                self.progress_label.config(text="✅ Обработка завершена")
+                result_msg = f"Обработка завершена успешно!{elapsed_str}\n\n"
+                result_msg += f"Всего чанков: {result['total_chunks']}\n"
+                result_msg += f"Обработано файлов: {result['processed_count']}/{len(self.selected_files)}\n"
+                result_msg += f"\nРезультаты сохранены в: {self.settings['output_dir']}"
+                
+                self._log(f"Обработка завершена. Чанков: {result['total_chunks']}")
+                messagebox.showinfo("Успешно", result_msg)
         
-        messagebox.showinfo(self.translations['success_title'], result_msg)
+        self.progress['value'] = 0
+    
+        # Сбрасываем время мониторинга для следующего запуска
+        if hasattr(self, '_monitor_start_time'):
+            delattr(self, '_monitor_start_time')
+    
+    def _process_in_thread(self, use_parallel: bool) -> None:
+        """Обработка файлов в отдельном потоке."""
+        import time
+        thread_start_time = time.time()  # Время начала для статистики
+        self._current_stage = "📊 Подготовка..."
+        
+        total_chunks = 0
+        processed_count = 0
+        
+        try:
+            if use_parallel and len(self.selected_files) > 1:
+                # Параллельная обработка
+                self._current_stage = "⚡ Параллельная обработка"
+                self._log_threadsafe(f"Параллельная обработка {len(self.selected_files)} файлов...")
+                total_chunks, processed_count = self._process_parallel_threadsafe()
+            else:
+                # Последовательная обработка
+                total_files = len(self.selected_files)
+                for i, file_path in enumerate(self.selected_files, 1):
+                    if self._cancel_requested:
+                        break
+                    
+                    # Обновляем текущий файл
+                    self._current_stage = f"📁 Файл {i}/{total_files}: {file_path.name[:20]}..."
+                    base_progress = (i - 1) / total_files * 100
+                    self._progress_value = base_progress
+                    self._log_threadsafe(f"Обработка [{i}/{total_files}]: {file_path.name}")
+                    
+                    chunks = self._process_single_file_threadsafe(file_path, progress_base=base_progress, progress_step=100/total_files)
+                    total_chunks += chunks
+                    processed_count += 1
+                    
+                    # Финальный прогресс для файла
+                    self._progress_value = i / total_files * 100
+                    
+                    # Добавляем в историю
+                    self._add_to_history(file_path)
+            
+            # Сохраняем статистику
+            duration = time.time() - thread_start_time
+            total_pages = getattr(self, '_total_pages', 0)
+            self._save_processing_stats(
+                total_pages, total_chunks, duration,
+                self.settings['enable_llm'], self.settings['enable_vectorization']
+            )
 
+            # Сохраняем результат
+            self._processing_result = {
+                'total_chunks': total_chunks,
+                'processed_count': processed_count,
+                'cancelled': self._cancel_requested
+            }
+            
+        except Exception as e:
+            self._log_threadsafe(f"Ошибка: {str(e)}")
+            logger.error(f"Ошибка в потоке обработки: {e}")
+            self._processing_result = {
+                'total_chunks': total_chunks,
+                'processed_count': processed_count,
+                'cancelled': False,
+                'error': str(e)
+            }
+    
+    def _log_threadsafe(self, message: str) -> None:
+        """Потокобезопасное логирование."""
+        self.root.after(0, lambda: self._log(message))
+    
+    def _process_single_file_threadsafe(self, file_path: Path, progress_base: float = 0, progress_step: float = 100) -> int:
+        """Обрабатывает один файл в потоке. Возвращает количество чанков."""
+        try:
+            # Создаём выходную директорию
+            output_dir = Path(self.settings['output_dir'])
+            output_dir.mkdir(parents=True, exist_ok=True)
+            
+            # Создаём директорию для векторной БД заранее
+            vector_db_dir = output_dir / "vector_db"
+            vector_db_dir.mkdir(parents=True, exist_ok=True)
+            
+            self._log_threadsafe(f"Output dir: {output_dir}")
+            
+            # Проверяем API ключ
+            api_key = os.getenv("OPENAI_API_KEY")
+            
+            if not api_key:
+                self._log_threadsafe("WARNING: OPENAI_API_KEY not found. Skipping vectorization and LLM.")
+                self.settings['enable_vectorization'] = False
+                self.settings['enable_llm'] = False
+            else:
+                self._log_threadsafe(f"API key found. LLM model: {self.settings['llm_model']}")
+        
+            # Callback для обновления прогресса
+            def progress_callback(stage: str, progress: float):
+                self._current_stage = stage
+                self._progress_value = progress_base + progress * progress_step
+            
+            result = process_pdf(
+                str(file_path),
+                str(output_dir),  # Передаём как строку
+                ocr_enabled=self.settings['ocr_enabled'],
+                ocr_lang='rus+eng',
+                enable_chunking=self.settings['enable_chunking'],
+                max_chunk_size=self.settings['chunk_size'],
+                overlap=self.settings['overlap'],
+                enable_vectorization=self.settings['enable_vectorization'],
+                embedding_model=self.settings['embedding_model'],
+                api_key=api_key,
+                api_base="https://openai.api.proxyapi.ru/v1",
+                use_llm=self.settings['enable_llm'],
+                llm_model=self.settings['llm_model'],
+                progress_callback=progress_callback
+            )
+
+            # Логируем результат LLM-обогащения
+            if result.get('llm_enhanced'):
+                self._log_threadsafe(f"  -> LLM enrichment completed")
+
+            chunks = len(result.get('chunks', []))
+            self._current_stage = "✅ Завершение"
+            self._progress_value = progress_base + progress_step
+            self._log_threadsafe(f"  -> Done: {chunks} chunks")
+            return chunks
+            
+        except Exception as e:
+            self._log_threadsafe(f"  -> Error: {str(e)}")
+            logger.error(f"Error processing {file_path.name}: {e}")
+            import traceback
+            logger.error(traceback.format_exc())
+            return 0
+
+    def _process_parallel_threadsafe(self) -> tuple:
+        """Параллельная обработка файлов в потоке."""
+        from concurrent.futures import ThreadPoolExecutor, as_completed
+        import threading
+        
+        total_chunks = 0
+        processed_count = 0
+        results_lock = threading.Lock()
+        total_files = len(self.selected_files)
+        
+        def process_file_wrapper(file_path, idx):
+            nonlocal total_chunks, processed_count
+            if self._cancel_requested:
+                return file_path, 0
+            progress_base = idx / total_files * 100
+            progress_step = 100 / total_files
+            chunks = self._process_single_file_threadsafe(file_path, progress_base, progress_step)
+            with results_lock:
+                total_chunks += chunks
+                processed_count += 1
+                self._progress_value = processed_count / total_files * 100
+            return file_path, chunks
+        
+        max_workers = min(4, total_files)
+        
+        with ThreadPoolExecutor(max_workers=max_workers) as executor:
+            futures = {executor.submit(process_file_wrapper, fp, i): fp for i, fp in enumerate(self.selected_files)}
+            
+            for future in as_completed(futures):
+                if self._cancel_requested:
+                    break
+                file_path = futures[future]
+                try:
+                    future.result()
+                except Exception as e:
+                    self._log_threadsafe(f"  → Ошибка: {str(e)}")
+        
+        return total_chunks, processed_count
+    
     def _process_single_file(self, file_path: Path) -> int:
         """Обрабатывает один файл. Возвращает количество чанков."""
         try:

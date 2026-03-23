@@ -10,8 +10,25 @@ import logging
 from typing import Any, Dict, List, Optional
 from datetime import datetime
 from pathlib import Path
+import threading
 
 logger = logging.getLogger(__name__)
+
+# Глобальный флаг отмены (thread-safe)
+_cancel_event = threading.Event()
+
+def request_cancel():
+    """Запросить отмену обработки."""
+    _cancel_event.set()
+    logger.info("LLM: Получен сигнал отмены")
+
+def clear_cancel():
+    """Сбросить флаг отмены."""
+    _cancel_event.clear()
+
+def is_cancelled() -> bool:
+    """Проверить, запрошена ли отмена."""
+    return _cancel_event.is_set()
 
 # Попытка импортировать openai
 try:
@@ -126,13 +143,15 @@ class LLMChunker:
         """Проверяет доступность LLM."""
         return self.client is not None
     
-    def enhance_metadata(self, chunks: List[Dict], batch_size: int = 10) -> List[Dict]:
+    def enhance_metadata(self, chunks: List[Dict], batch_size: int = 10, cancel_check: callable = None, progress_callback: callable = None) -> List[Dict]:
         """
         Обогащает метаданные чанков через LLM.
         
         Args:
             chunks: Список чанков.
             batch_size: Размер батча для обработки.
+            cancel_check: Функция проверки отмены (опционально, также используется глобальный флаг).
+            progress_callback: Функция для обновления прогресса (current: int, total: int).
             
         Returns:
             Чанки с расширенными метаданными.
@@ -143,8 +162,24 @@ class LLMChunker:
         
         logger.info(f"LLM ({self.provider}): Обогащение метаданных для {len(chunks)} чанков")
         
+        total_batches = (len(chunks) + batch_size - 1) // batch_size
+        
         # Обрабатываем батчами
-        for i in range(0, len(chunks), batch_size):
+        stop_on_error = False  # Флаг для остановки при критических ошибках
+        
+        for batch_idx, i in enumerate(range(0, len(chunks), batch_size)):
+            # Проверяем отмену (глобальный флаг или callback)
+            if is_cancelled() or (cancel_check and cancel_check()):
+                logger.info("LLM: Обогащение отменено пользователем")
+                break
+                
+            if stop_on_error:
+                break
+                
+            # Обновляем прогресс
+            if progress_callback:
+                progress_callback(batch_idx + 1, total_batches)
+                
             batch = chunks[i:i + batch_size]
             
             prompt = self._build_metadata_prompt(batch)
@@ -178,7 +213,19 @@ class LLMChunker:
                         chunks[i + j]['metadata'].update(meta)
                         
             except Exception as e:
+                error_msg = str(e)
                 logger.error(f"LLM: Ошибка при обогащении метаданных: {e}")
+        
+                # Проверяем критические ошибки (баланс, авторизация)
+                if "402" in error_msg or "Insufficient balance" in error_msg:
+                    logger.error("LLM: Недостаточно средств на балансе API. Прекращаем обогащение.")
+                    stop_on_error = True
+                elif "401" in error_msg or "Unauthorized" in error_msg:
+                    logger.error("LLM: Ошибка авторизации API. Прекращаем обогащение.")
+                    stop_on_error = True
+                elif "403" in error_msg or "Forbidden" in error_msg:
+                    logger.error("LLM: Доступ запрещён. Прекращаем обогащение.")
+                    stop_on_error = True
         
         return chunks
     
@@ -356,8 +403,9 @@ def process_chunks_with_llm(
     use_llm: bool = True,
     llm_api_key: str = None,
     llm_model: str = "gpt-4o-mini",
-    llm_api_base: str = "https://openai.api.proxyapi.ru/v1",
-    generate_demo: bool = True
+    llm_api_base: str = None,
+    generate_demo: bool = True,
+    progress_callback: callable = None
 ) -> Dict[str, Any]:
     """
     Обработка чанков с опциональным LLM-обогащением.
@@ -371,8 +419,9 @@ def process_chunks_with_llm(
         use_llm: Использовать LLM для обогащения.
         llm_api_key: API ключ.
         llm_model: Модель LLM.
-        llm_api_base: Base URL для LLM.
+        llm_api_base: Base URL для LLM (если None, выбирается автоматически по модели).
         generate_demo: Генерировать демо.
+        progress_callback: Функция для обновления прогресса (stage: str, progress: float).
         
     Returns:
         Результат с чанками и метаданными.
@@ -389,27 +438,47 @@ def process_chunks_with_llm(
     # Классический чанкинг
     all_chunks = []
     
-    for page in processed_pages:
+    if progress_callback:
+        progress_callback("✂️ Чанкинг", 0.25)
+    
+    for i, page in enumerate(processed_pages):
         structure = page["structure"]
         chunks = hybrid_chunking(structure, max_chunk_size, overlap)
         chunks_with_meta = add_metadata(chunks, pdf_path, page["page_number"])
         all_chunks.extend(chunks_with_meta)
+    
+        # Обновляем прогресс чанкинга (25-45%)
+        if progress_callback:
+            progress = 0.25 + (i / len(processed_pages)) * 0.20
+            progress_callback("✂️ Чанкинг", progress)
     
     # Опциональное LLM-обогащение
     llm_enhanced = False
     llm_chunker = None
     
     if use_llm:
+        if progress_callback:
+            progress_callback("🤖 LLM-обогащение", 0.45)
+        
         try:
+            # Если llm_api_base не задан, LLMChunker выберет правильный URL автоматически
             llm_chunker = LLMChunker(
                 api_key=llm_api_key, 
                 model=llm_model,
-                api_base=llm_api_base
+                api_base=llm_api_base  # None означает автоматический выбор
             )
             
             if llm_chunker.is_available():
                 logger.info("LLM: Начало обогащения метаданных...")
-                all_chunks = llm_chunker.enhance_metadata(all_chunks)
+                
+                # Создаём callback для LLM прогресса
+                def llm_progress(current: int, total: int):
+                    if progress_callback:
+                        # LLM этап: 45-70%
+                        progress = 0.45 + (current / total) * 0.25
+                        progress_callback("🤖 LLM-обогащение", progress)
+                
+                all_chunks = llm_chunker.enhance_metadata(all_chunks, progress_callback=llm_progress)
                 llm_enhanced = True
                 logger.info("LLM: Метаданные успешно обогащены")
             else:
@@ -418,9 +487,13 @@ def process_chunks_with_llm(
             logger.error(f"LLM: Ошибка обогащения: {e}")
     
     # Валидация
+    if progress_callback:
+        progress_callback("📊 Валидация", 0.70)
     validation = validate_chunks(all_chunks)
     
     # Генерация отчётов
+    if progress_callback:
+        progress_callback("📝 Генерация отчётов", 0.75)
     report_path = Path("output_module_3") / "chunking_report.txt"
     generate_chunking_report(validation, max_chunk_size, overlap, str(report_path))
     
