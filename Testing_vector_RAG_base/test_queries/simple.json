@@ -1,0 +1,19 @@
+# Тестовые запросы - простой уровень
+
+[
+  {
+    "query": "Что такое RAG?",
+    "expected_keywords": ["retrieval", "augmented", "generation", "поиск", "генерация"],
+    "difficulty": "simple"
+  },
+  {
+    "query": "Как работает векторный поиск?",
+    "expected_keywords": ["эмбеддинг", "вектор", "FAISS", "похожесть"],
+    "difficulty": "simple"
+  },
+  {
+    "query": "Что такое чанки?",
+    "expected_keywords": ["chunk", "разбиение", "текст", "фрагмент"],
+    "difficulty": "simple"
+  }
+]

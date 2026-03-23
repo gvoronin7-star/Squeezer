@@ -1,0 +1,19 @@
+# Тестовые запросы - сложный уровень
+
+[
+  {
+    "query": "Какие преимущества и недостатки разных стратегий чанкинга?",
+    "expected_keywords": ["семантический", "фиксированный", "overlap", "контекст"],
+    "difficulty": "complex"
+  },
+  {
+    "query": "Сравните подходы Re-ranking и HyDE для улучшения поиска",
+    "expected_keywords": ["rerank", "hyde", "hypothetical", "релевантность"],
+    "difficulty": "complex"
+  },
+  {
+    "query": "Как оптимизировать качество ответов в RAG-системе?",
+    "expected_keywords": ["промпт", "контекст", "self-rag", "groundedness"],
+    "difficulty": "complex"
+  }
+]

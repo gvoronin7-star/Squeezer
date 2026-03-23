@@ -1,0 +1,24 @@
+# Тестовые запросы - граничные случаи
+
+[
+  {
+    "query": "Сколько стоит луна?",
+    "expected": "refusal",
+    "difficulty": "edge"
+  },
+  {
+    "query": "Как приготовить борщ?",
+    "expected": "refusal",
+    "difficulty": "edge"
+  },
+  {
+    "query": "",
+    "expected": "error",
+    "difficulty": "edge"
+  },
+  {
+    "query": "xyz123nonexistent456abc",
+    "expected": "no_results",
+    "difficulty": "edge"
+  }
+]

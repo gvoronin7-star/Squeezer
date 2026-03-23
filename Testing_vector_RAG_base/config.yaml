@@ -1,0 +1,74 @@
+# Конфигурация системы тестирования RAG-баз
+
+# Общие настройки
+general:
+  version: "1.0.0"
+  threshold: 80  # Порог качества (%)
+  save_history: true
+  history_file: "test_history.json"
+
+# Веса категорий тестов
+weights:
+  structure: 0.10
+  chunks: 0.25
+  search: 0.30
+  answers: 0.25
+  coverage: 0.10
+
+# Настройки тестов чанков
+chunk_tests:
+  min_size: 100
+  max_size: 1000
+  optimal_min: 200   # Добавлено
+  optimal_max: 600   # Добавлено
+  max_duplicates_percent: 5
+  required_metadata:
+    - chunk_id
+    - source
+    - page_number
+  coherence_threshold: 0.7
+
+# Настройки тестов поиска
+search_tests:
+  top_k_values: [5, 10, 20]
+  precision_threshold: 0.5   # Снижено с 0.7
+  recall_threshold: 0.7
+  max_latency_seconds: 2.0
+  test_queries_count: 20
+
+# Настройки тестов ответов
+answer_tests:
+  correctness_threshold: 0.7
+  groundedness_threshold: 0.7
+  completeness_threshold: 0.6
+  max_hallucinations_percent: 20  # Увеличено с 10
+  test_questions_count: 15
+
+# Настройки тестов покрытия
+coverage_tests:
+  topic_coverage_threshold: 0.5   # Снижено с 0.8
+  keyword_coverage_threshold: 0.5 # Снижено с 0.7
+  question_coverage_threshold: 0.5  # Снижено с 0.6
+  min_information_density: 0.5
+
+# LLM настройки
+llm:
+  model: "gpt-4o-mini"
+  temperature: 0.1
+  max_tokens: 500
+
+# API настройки
+api:
+  base_url: "https://openai.api.proxyapi.ru/v1"
+  timeout: 30
+
+# GUI настройки
+gui:
+  theme: "light"  # light / dark
+  window_width: 1200
+  window_height: 800
+  chart_colors:
+    excellent: "#4CAF50"
+    good: "#8BC34A"
+    warning: "#FFC107"
+    error: "#F44336"

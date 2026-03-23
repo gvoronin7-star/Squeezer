@@ -1,0 +1,32 @@
+[
+  {
+    "timestamp": "2026-03-23T05:57:41.901478",
+    "db_path": "..\\output\\vector_db",
+    "total_score": 10.0,
+    "passed": false,
+    "threshold": 80,
+    "duration_seconds": 0.54,
+    "categories": {
+      "structure": {
+        "score": 100.0,
+        "passed": true
+      },
+      "chunks": {
+        "score": 0,
+        "passed": false
+      },
+      "search": {
+        "score": 0,
+        "passed": false
+      },
+      "answers": {
+        "score": 0,
+        "passed": false
+      },
+      "coverage": {
+        "score": 0,
+        "passed": false
+      }
+    }
+  }
+]
