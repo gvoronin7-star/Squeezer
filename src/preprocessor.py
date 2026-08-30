@@ -4,6 +4,8 @@
 Реализует этапы: извлечение, очистка, нормализация, структурирование текста.
 """
 
+from __future__ import annotations
+
 import logging
 import re
 import os
