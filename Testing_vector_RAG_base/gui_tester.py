@@ -412,7 +412,8 @@ class RAGQualityTesterGUI:
             self.root.after(0, self._display_results)
             
         except Exception as e:
-            self.root.after(0, lambda: messagebox.showerror("Ошибка", str(e)))
+            error_msg = str(e)
+            self.root.after(0, lambda: messagebox.showerror("Ошибка", error_msg))
         
         finally:
             self.testing_in_progress = False

@@ -16,6 +16,8 @@ pytesseract>=0.3.10
 # Обработка текста
 beautifulsoup4>=4.12.0
 python-dateutil>=2.8.2
+Pillow>=9.0.0
+chardet>=5.0.0
 
 # Нормализация текста (опционально)
 unidecode>=1.3.6
@@ -30,6 +32,10 @@ anthropic>=0.18.0
 
 # FAISS для векторной БД
 faiss-cpu>=1.7.4
+numpy>=1.21.0
 
 # Загрузка переменных окружения из .env
 python-dotenv>=1.0.0
+
+# GUI (tooltip для gui_app.py)
+tkinter-tooltip>=2.0.0
