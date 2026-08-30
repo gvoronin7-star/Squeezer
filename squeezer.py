@@ -5,6 +5,12 @@ import os
 import sys
 from pathlib import Path
 
+# На Windows консоль по умолчанию использует cp1252, который не может
+# закодировать кириллицу в справке/сообщениях — принудительно ставим UTF-8
+if sys.stdout.encoding and sys.stdout.encoding.lower() != "utf-8":
+    sys.stdout.reconfigure(encoding="utf-8")
+    sys.stderr.reconfigure(encoding="utf-8")
+
 # Добавляем src в путь для импорта модулей
 sys.path.insert(0, str(Path(__file__).parent))
 
