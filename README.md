@@ -423,13 +423,13 @@ for i, (dist, idx) in enumerate(zip(distances[0], indices[0])):
   "author_url": "https://t.me/Line_GV",
   "release_date": "2026-03-23",
   "input_dir": "./pdfs/",
-  "output_dir": "./output/",
+  "output_dir": "./output_module_2/",
   "chunk_size": 500,
   "overlap": 50,
   "embedding_model": "text-embedding-3-small",
   "llm_model": "gpt-4o-mini",
   "vector_db_type": "faiss",
-  "api_base": "https://api.proxyapi.ru/openai/v1",
+  "api_base": "https://openai.api.proxyapi.ru/v1",
   "ocr_enabled": true,
   "log_level": "INFO"
 }

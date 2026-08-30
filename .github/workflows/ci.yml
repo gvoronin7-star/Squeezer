@@ -59,7 +59,7 @@ jobs:
     
     - name: Test import
       run: |
-        python -c "import PyPDF2; import pdfplumber; import pytesseract; import openai; import faiss; print('All imports successful!')"
+        python -c "import pypdf; import pdfplumber; import pytesseract; import openai; import faiss; print('All imports successful!')"
     
     - name: Test CLI
       run: |
