@@ -1,5 +1,14 @@
 #!/usr/bin/env python3
-"""Финальный тест системы Squeezer с LLM моделями."""
+"""
+Ручной demo-скрипт: гоняет реальные LLM-модели через proxyAPI.
+
+ВНИМАНИЕ: делает настоящие платные вызовы chat.completions на уровне
+модуля (при простом импорте, не только при явном запуске) для каждой
+модели из test_models. Не pytest-тест — раньше лежал в tests/ как
+test_final.py и совпадал с паттерном сбора pytest'а: любой запуск
+`pytest tests/` при наличии OPENAI_API_KEY в .env молча делал бы эти
+вызовы. См. decisions/decision-log.md.
+"""
 
 import os
 import sys

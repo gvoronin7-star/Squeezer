@@ -1,5 +1,13 @@
 #!/usr/bin/env python3
-"""Комплексное тестирование системы Squeezer."""
+"""
+Ручной demo-скрипт: комплексный прогон Squeezer на pdfs/test_document.pdf
+(положите свой файл под этим именем) — извлечение, анализ, чанкинг,
+включая один шаг с use_llm=True (может стоить платного вызова API,
+если файл действительно есть и найден).
+
+Не pytest-тест — раньше лежал в tests/ как test_system.py и совпадал
+с паттерном сбора pytest'а. См. decisions/decision-log.md.
+"""
 
 import os
 import sys

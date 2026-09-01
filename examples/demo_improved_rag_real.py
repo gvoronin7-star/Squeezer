@@ -1,6 +1,11 @@
 # -*- coding: utf-8 -*-
 """
-Real test of Improved RAG on PDF files.
+Ручной demo-скрипт: обрабатывает pdfs/test_document.pdf (положите свой
+файл под этим именем) и прогоняет улучшенный RAG-поиск.
+
+Не pytest-тест — раньше лежал в tests/ как test_improved_rag_real.py,
+собирался pytest'ом по имени файла и ронял сбор всего набора тестов
+без внятной причины (см. decisions/decision-log.md).
 """
 
 import os

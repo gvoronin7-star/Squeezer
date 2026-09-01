@@ -1,5 +1,13 @@
 #!/usr/bin/env python3
-"""Тест LLM моделей через proxyAPI."""
+"""
+Ручной demo-скрипт: проверяет доступность и отвечающие LLM-модели
+через proxyAPI, делает по одному короткому запросу на модель.
+
+ВНИМАНИЕ: делает настоящие платные вызовы chat.completions на уровне
+модуля (при простом импорте). Не pytest-тест — раньше лежал в tests/
+как test_llm_models.py и совпадал с паттерном сбора pytest'а. См.
+decisions/decision-log.md.
+"""
 
 import os
 import sys

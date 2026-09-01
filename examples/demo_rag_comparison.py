@@ -1,6 +1,12 @@
 # -*- coding: utf-8 -*-
 """
-Detailed comparison of all RAG improvement methods.
+Ручной demo-скрипт: сравнивает re-ranking/HyDE/fusion/basic поиск на
+выводе demo_improved_rag_real.py (запустите его первым — читает
+test_rag_output/vector_db/, которую тот создаёт).
+
+Не pytest-тест — раньше лежал в tests/ как test_rag_comparison.py,
+собирался pytest'ом по имени файла и ронял сбор всего набора тестов
+без внятной причины (см. decisions/decision-log.md).
 """
 
 import os
