@@ -159,7 +159,9 @@ def save_to_vector_db(
             "embeddings": [],
             "embedding_dim": 0,
             "vector_db_path": None,
-            "dataset_path": None
+            "dataset_path": None,
+            "metadata_path": None,
+            "total_vectors": 0
         }
 
     # Настройка клиента OpenAI

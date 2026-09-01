@@ -121,42 +121,42 @@ class TestValidateChunks:
     def test_valid_chunks(self):
         """Тест валидных чанков."""
         from src.chunker import validate_chunks
-        
+
         chunks = [
             {"text": "Нормальный текст", "metadata": {"char_count": 17}},
             {"text": "Ещё текст", "metadata": {"char_count": 9}}
         ]
-        
+
         result = validate_chunks(chunks)
-        assert result["total"] == 2
-        assert result["empty"] == 0
-    
+        assert result["stats"]["total_chunks"] == 2
+        assert result["empty_chunks"] == []
+
     def test_empty_chunks_detection(self):
         """Тест обнаружения пустых чанков."""
         from src.chunker import validate_chunks
-        
+
         chunks = [
             {"text": "", "metadata": {"char_count": 0}},
             {"text": "Текст", "metadata": {"char_count": 5}},
             {"text": "   ", "metadata": {"char_count": 3}}
         ]
-        
+
         result = validate_chunks(chunks)
-        assert result["empty"] >= 1
-    
+        assert len(result["empty_chunks"]) >= 1
+
     def test_statistics(self):
         """Тест статистики чанков."""
         from src.chunker import validate_chunks
-        
+
         chunks = [
             {"text": "Короткий", "metadata": {"char_count": 8}},
             {"text": "Более длинный текст", "metadata": {"char_count": 19}}
         ]
-        
+
         result = validate_chunks(chunks)
-        assert "avg_length" in result
-        assert "min_length" in result
-        assert "max_length" in result
+        assert "avg_char_count" in result["stats"]
+        assert "min_char_count" in result["stats"]
+        assert "max_char_count" in result["stats"]
 
 
 class TestChunkTypes:

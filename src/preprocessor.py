@@ -390,8 +390,8 @@ def normalize_text(
     """
     if not cleaned_text:
         if return_stats:
-            return cleaned_text, {"abbr_expanded": 0, "dates_standardized": 0}
-        return cleaned_text
+            return "", {"abbr_expanded": 0, "dates_standardized": 0}
+        return ""
 
     logger.debug("[Этап 3] Начало нормализации текста")
 
@@ -533,6 +533,12 @@ def structure_text(normalized_text: str) -> Dict[str, Any]:
         line = line.strip()
         if not line:
             prev_ends_sentence = True
+            # Пустая строка — разрыв абзаца: без этого несколько
+            # абзацев, разделённых пустыми строками, склеивались в
+            # один при финальной сборке current_paragraph.
+            if current_paragraph:
+                result["paragraphs"].append(' '.join(current_paragraph))
+                current_paragraph = []
             continue
 
         # "Свежий старт" даёт не только явная завершающая пунктуация,
