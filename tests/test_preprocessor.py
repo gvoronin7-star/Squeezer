@@ -192,9 +192,33 @@ class TestStructureText:
     def test_detect_faq(self):
         """Тест определения FAQ-блоков."""
         from src.preprocessor import structure_text
-        
+
         result = structure_text("Вопрос: Как сделать?\nОтвет: Вот так.")
         assert result["metadata"]["has_questions"] is True
+
+    def test_wrapped_line_is_not_a_heading(self):
+        """Короткая строка — перенос той же фразы (например, пункт
+        таблицы кодификатора тем, перенесённый на вторую строку из-за
+        узкой колонки) — не должна становиться отдельным заголовком."""
+        from src.preprocessor import structure_text
+
+        result = structure_text(
+            "3.2 Товары и услуги, ресурсы и потребности,\n"
+            "ограниченность ресурсов\n"
+            "3.3 Экономические системы и собственность"
+        )
+        assert result["headings"] == []
+
+    def test_heading_after_paragraph_break_still_detected(self):
+        """Настоящий заголовок сразу после разрыва абзаца (пустая
+        строка) по-прежнему должен распознаваться — перенос строк не
+        должен подавлять определение заголовков вообще."""
+        from src.preprocessor import structure_text
+
+        result = structure_text(
+            "Первый абзац закончен.\n\nЗаголовок раздела\n\nВторой абзац."
+        )
+        assert "заголовок раздела" in [h.lower() for h in result["headings"]]
     
     def test_empty_input(self):
         """Тест пустого ввода."""

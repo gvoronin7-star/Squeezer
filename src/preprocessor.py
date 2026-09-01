@@ -27,6 +27,11 @@ except ImportError:
     pypdf = None
 
 try:
+    import pdfplumber
+except ImportError:
+    pdfplumber = None
+
+try:
     from pdf2image import convert_from_path
     import pytesseract
 except ImportError:
@@ -110,43 +115,57 @@ def extract_text_from_pdf(
     pages_data: List[Dict[str, Any]] = []
     ocr_pages: List[int] = []
 
-    # Проверяем наличие pypdf
-    if pypdf is None:
-        logger.error("Библиотека pypdf не установлена. Выполните: pip install pypdf")
-        raise ImportError("Библиотека pypdf не установлена")
+    # pdfplumber — приоритетный экстрактор: на реальных документах
+    # (проверено на методичке ФИПИ по обществознанию) даёт заметно
+    # более чистый текст, чем pypdf — тот местами теряет пробелы между
+    # словами и вставляет лишние внутри них на этом типе PDF. pypdf —
+    # фолбэк, если pdfplumber не установлен. Подробности —
+    # decisions/decision-log.md.
+    if pdfplumber is not None:
+        extractor_name = "pdfplumber"
+    elif pypdf is not None:
+        extractor_name = "pypdf"
+    else:
+        logger.error(
+            "Ни pdfplumber, ни pypdf не установлены. "
+            "Выполните: pip install pdfplumber pypdf"
+        )
+        raise ImportError("Библиотеки для извлечения PDF не установлены")
 
     try:
-        with open(pdf_path, 'rb') as file:
-            pdf_reader = pypdf.PdfReader(file)
-            num_pages = len(pdf_reader.pages)
-            logger.info(f"Всего страниц в PDF: {num_pages}")
+        if extractor_name == "pdfplumber":
+            raw_pages = _extract_pages_pdfplumber(pdf_path)
+        else:
+            raw_pages = _extract_pages_pypdf(pdf_path)
 
-            for page_num in range(num_pages):
-                page = pdf_reader.pages[page_num]
-                text = page.extract_text()
+        logger.info(
+            f"Всего страниц в PDF: {len(raw_pages)} (экстрактор: {extractor_name})"
+        )
 
-                metadata = {
-                    "source": pdf_path,
-                    "page_number": page_num + 1,
-                    "ocr_applied": False
-                }
+        for page_num, text in enumerate(raw_pages):
+            metadata = {
+                "source": pdf_path,
+                "page_number": page_num + 1,
+                "ocr_applied": False,
+                "extractor": extractor_name,
+            }
 
-                # Если текст не извлечён или пустой, пробуем OCR
-                if not text or len(text.strip()) < 10:
-                    if ocr_enabled:
-                        logger.warning(f"Текст на странице {page_num + 1} не найден, применяем OCR")
-                        text = _apply_ocr(pdf_path, page_num, ocr_lang)
-                        metadata["ocr_applied"] = True
-                        ocr_pages.append(page_num + 1)
-                    else:
-                        logger.warning(f"Текст на странице {page_num + 1} не найден, OCR отключён")
-                        text = ""
+            # Если текст не извлечён или пустой, пробуем OCR
+            if not text or len(text.strip()) < 10:
+                if ocr_enabled:
+                    logger.warning(f"Текст на странице {page_num + 1} не найден, применяем OCR")
+                    text = _apply_ocr(pdf_path, page_num, ocr_lang)
+                    metadata["ocr_applied"] = True
+                    ocr_pages.append(page_num + 1)
+                else:
+                    logger.warning(f"Текст на странице {page_num + 1} не найден, OCR отключён")
+                    text = ""
 
-                pages_data.append({
-                    "page_number": page_num + 1,
-                    "text": text,
-                    "metadata": metadata
-                })
+            pages_data.append({
+                "page_number": page_num + 1,
+                "text": text,
+                "metadata": metadata
+            })
 
         logger.info(f"[Этап 1] Успешно извлечено страниц: {len(pages_data)}")
         if ocr_pages:
@@ -157,6 +176,19 @@ def extract_text_from_pdf(
     except Exception as e:
         logger.error(f"Ошибка при извлечении текста из PDF: {e}")
         raise
+
+
+def _extract_pages_pdfplumber(pdf_path: str) -> List[str]:
+    """Извлекает текст постранично через pdfplumber."""
+    with pdfplumber.open(pdf_path) as pdf:
+        return [page.extract_text() or "" for page in pdf.pages]
+
+
+def _extract_pages_pypdf(pdf_path: str) -> List[str]:
+    """Извлекает текст постранично через pypdf (фолбэк без pdfplumber)."""
+    with open(pdf_path, 'rb') as file:
+        pdf_reader = pypdf.PdfReader(file)
+        return [page.extract_text() or "" for page in pdf_reader.pages]
 
 
 def _apply_ocr(pdf_path: str, page_num: int, ocr_lang: str) -> str:
@@ -487,15 +519,34 @@ def structure_text(normalized_text: str) -> Dict[str, Any]:
     current_paragraph: List[str] = []
     current_list: List[str] = []
     in_list = False
+    # Считается "свежим стартом" — только сразу после пустой строки
+    # или строки с завершающей пунктуацией разрешаем эвристикам
+    # заголовка (кроме markdown `#...`, он однозначен сам по себе)
+    # срабатывать. Без этого перенос строки внутри одной ячейки
+    # таблицы (например, кодификатор тем ФИПИ — "3.2 Товары и услуги,
+    # ресурсы и потребности," + "ограниченность ресурсов" второй
+    # строкой) распознаётся как новый отдельный заголовок, хотя это
+    # продолжение того же предложения.
+    prev_ends_sentence = True
 
     for line in lines:
         line = line.strip()
         if not line:
+            prev_ends_sentence = True
             continue
+
+        # "Свежий старт" даёт не только явная завершающая пунктуация,
+        # но и просто длинная строка (длиннее верхней границы паттерна
+        # заголовка-по-длине, 50 символов) — раз она уже заведомо не
+        # заголовок, всё, что идёт сразу после неё, с большей
+        # вероятностью новый смысловой блок, а не перенос той же фразы.
+        line_ends_sentence = line[-1:] in ".!?:;…" or len(line) > 60
 
         # Проверяем на заголовок
         is_heading = False
-        for pattern in heading_patterns:
+        for idx, pattern in enumerate(heading_patterns):
+            if idx > 0 and not prev_ends_sentence:
+                continue
             if re.match(pattern, line, re.IGNORECASE):
                 # Сохраняем текущий абзац если есть
                 if current_paragraph:
@@ -516,6 +567,7 @@ def structure_text(normalized_text: str) -> Dict[str, Any]:
                 break
 
         if is_heading:
+            prev_ends_sentence = line_ends_sentence
             continue
 
         # Проверяем на FAQ маркеры
@@ -541,6 +593,7 @@ def structure_text(normalized_text: str) -> Dict[str, Any]:
                 break
 
         if is_list_item:
+            prev_ends_sentence = line_ends_sentence
             continue
 
         # Если это не список, сохраняем список если был
@@ -551,6 +604,7 @@ def structure_text(normalized_text: str) -> Dict[str, Any]:
 
         # Добавляем в абзац
         current_paragraph.append(line)
+        prev_ends_sentence = line_ends_sentence
 
     # Сохраняем последние данные
     if current_paragraph:
