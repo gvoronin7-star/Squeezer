@@ -336,17 +336,24 @@ def normalize_text(
         for line in lines:
             normalized_line = line
 
-            # 1. Приведение к нижнему регистру (по строкам)
-            if lower:
-                normalized_line = normalized_line.lower()
-
-            # 2. Замена сокращений (по строкам)
+            # 1. Замена сокращений (по строкам, до приведения регистра).
+            # Сопоставление регистрозависимое и намеренно идёт раньше
+            # lower(): сокращения вроде "т.е."/"т.к." встречаются в
+            # тексте уже в нижнем регистре, а совпадающая по буквам
+            # последовательность в верхнем регистре — почти всегда
+            # инициалы человека ("Т.Е. Лискова"), а не сокращение.
+            # Раньше матчинг шёл уже после lower(), из-за чего
+            # "Т.Е. Лискова" превращалось в "то есть лискова".
             if expand_abbr:
                 for abbr, expansion in ABBREVIATIONS.items():
                     count = normalized_line.count(abbr)
                     if count > 0:
                         normalized_line = normalized_line.replace(abbr, expansion)
                         stats["abbr_expanded"] += count
+
+            # 2. Приведение к нижнему регистру (по строкам)
+            if lower:
+                normalized_line = normalized_line.lower()
 
             # 3. Стандартизация дат (по строкам)
             if standardize_dates and date_parser:
@@ -370,16 +377,17 @@ def normalize_text(
 
         normalized = '\n'.join(normalized_lines)
     else:
-        # Обработка как одного блока текста (старый вариант)
-        if lower:
-            normalized = normalized.lower()
-
+        # Обработка как одного блока текста (старый вариант).
+        # Сокращения — до lower(), см. пояснение в ветке preserve_structure.
         if expand_abbr:
             for abbr, expansion in ABBREVIATIONS.items():
                 count = normalized.count(abbr)
                 if count > 0:
                     normalized = normalized.replace(abbr, expansion)
                     stats["abbr_expanded"] += count
+
+        if lower:
+            normalized = normalized.lower()
 
         if standardize_dates and date_parser:
             for pattern in DATE_PATTERNS:
