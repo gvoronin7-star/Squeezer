@@ -81,11 +81,57 @@ class TestNormalizeText:
     def test_expand_abbreviations(self):
         """Тест расширения сокращений."""
         from src.preprocessor import normalize_text
-        
+
         result = normalize_text("т.е. пример и т.д.", expand_abbr=True, lower=True)
         assert "то есть" in result
         assert "и так далее" in result
-    
+
+    def test_abbreviation_expansion_does_not_mangle_initials(self):
+        """Инициалы человека ("Т.Е. Лискова") не должны превращаться
+        в развёрнутое сокращение ("то есть лискова")."""
+        from src.preprocessor import normalize_text
+
+        result = normalize_text(
+            "Авторы: О.А. Котова, Т.Е. Лискова",
+            expand_abbr=True,
+            lower=True,
+        )
+        assert "то есть" not in result
+        assert "лискова" in result
+
+    def test_abbreviation_expansion_does_not_mangle_single_letter_initials(self):
+        """То же для однобуквенных инициалов перед фамилией
+        ("Г. Воронин" не должно превращаться в "год Воронин")."""
+        from src.preprocessor import normalize_text
+
+        result = normalize_text(
+            "Депутат Г. Воронин выступил с докладом",
+            expand_abbr=True,
+            lower=True,
+        )
+        assert "год" not in result
+        assert "воронин" in result
+
+    def test_abbreviation_expansion_at_sentence_start(self):
+        """Настоящее сокращение в начале предложения (заглавная буква
+        не из-за инициалов, а по правилам пунктуации) должно
+        разворачиваться как обычно."""
+        from src.preprocessor import normalize_text
+
+        result = normalize_text(
+            "Т.е. это очень важно.",
+            expand_abbr=True,
+            lower=True,
+        )
+        assert "то есть" in result
+
+        result2 = normalize_text(
+            "Стр. 5 содержит важную информацию.",
+            expand_abbr=True,
+            lower=True,
+        )
+        assert "страница" in result2
+
     def test_standardize_dates(self):
         """Тест стандартизации дат."""
         from src.preprocessor import normalize_text

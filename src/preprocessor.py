@@ -296,6 +296,44 @@ def clean_text(
     return cleaned
 
 
+def _expand_abbreviations(line: str) -> tuple[str, int]:
+    """
+    Разворачивает сокращения из ABBREVIATIONS в одной строке.
+
+    Сопоставление регистронезависимое (в отличие от прежней версии),
+    но с проверкой контекста для заглавных совпадений: сокращение,
+    написанное с заглавной буквы и за которым сразу следует ещё одно
+    слово с заглавной буквы, почти наверняка не сокращение, а инициалы
+    человека перед фамилией ("Т.Е. Лискова", "Г. Воронин") — такие не
+    разворачиваются. Заглавное сокращение в начале предложения, за
+    которым следует обычное слово ("Т.е. это важно", "Стр. 5"),
+    разворачивается как обычно.
+
+    Returns:
+        tuple[str, int]: (строка с развёрнутыми сокращениями, сколько
+        разворачиваний реально произошло).
+    """
+    count = 0
+
+    for abbr, expansion in ABBREVIATIONS.items():
+        pattern = re.compile(re.escape(abbr), re.IGNORECASE)
+
+        def _replace(m: "re.Match[str]", expansion: str = expansion, line: str = line) -> str:
+            nonlocal count
+            matched = m.group(0)
+            if matched[0].isupper():
+                rest = line[m.end():].lstrip(" ")
+                if rest[:1].isupper():
+                    # Похоже на инициалы перед фамилией — не трогаем.
+                    return matched
+            count += 1
+            return expansion
+
+        line = pattern.sub(_replace, line)
+
+    return line, count
+
+
 def normalize_text(
     cleaned_text: str,
     lower: bool = True,
@@ -336,20 +374,14 @@ def normalize_text(
         for line in lines:
             normalized_line = line
 
-            # 1. Замена сокращений (по строкам, до приведения регистра).
-            # Сопоставление регистрозависимое и намеренно идёт раньше
-            # lower(): сокращения вроде "т.е."/"т.к." встречаются в
-            # тексте уже в нижнем регистре, а совпадающая по буквам
-            # последовательность в верхнем регистре — почти всегда
-            # инициалы человека ("Т.Е. Лискова"), а не сокращение.
-            # Раньше матчинг шёл уже после lower(), из-за чего
-            # "Т.Е. Лискова" превращалось в "то есть лискова".
+            # 1. Замена сокращений (по строкам, до приведения регистра
+            # — см. _expand_abbreviations, матчинг там смотрит на
+            # оригинальный регистр, чтобы отличить инициалы человека
+            # ("Т.Е. Лискова") от сокращения в начале предложения
+            # ("Т.е. это важно").
             if expand_abbr:
-                for abbr, expansion in ABBREVIATIONS.items():
-                    count = normalized_line.count(abbr)
-                    if count > 0:
-                        normalized_line = normalized_line.replace(abbr, expansion)
-                        stats["abbr_expanded"] += count
+                normalized_line, count = _expand_abbreviations(normalized_line)
+                stats["abbr_expanded"] += count
 
             # 2. Приведение к нижнему регистру (по строкам)
             if lower:
@@ -378,13 +410,10 @@ def normalize_text(
         normalized = '\n'.join(normalized_lines)
     else:
         # Обработка как одного блока текста (старый вариант).
-        # Сокращения — до lower(), см. пояснение в ветке preserve_structure.
+        # Сокращения — до lower(), см. _expand_abbreviations.
         if expand_abbr:
-            for abbr, expansion in ABBREVIATIONS.items():
-                count = normalized.count(abbr)
-                if count > 0:
-                    normalized = normalized.replace(abbr, expansion)
-                    stats["abbr_expanded"] += count
+            normalized, count = _expand_abbreviations(normalized)
+            stats["abbr_expanded"] += count
 
         if lower:
             normalized = normalized.lower()
