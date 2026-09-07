@@ -11,13 +11,13 @@ jobs:
     name: Lint
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v3
-    
+    - uses: actions/checkout@v7
+
     - name: Set up Python
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@v7
       with:
         python-version: '3.9'
-    
+
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
@@ -42,32 +42,37 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
-        python-version: ['3.8', '3.9', '3.10', '3.11']
-    
+        python-version: ['3.8', '3.9', '3.10', '3.11', '3.12', '3.13', '3.14']
+
     steps:
-    - uses: actions/checkout@v3
-    
+    - uses: actions/checkout@v7
+
     - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@v7
       with:
         python-version: ${{ matrix.python-version }}
-    
+
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
         pip install -r requirements.txt
-    
+        pip install -e ".[test]"
+
     - name: Test import
       run: |
         python -c "import pypdf; import pdfplumber; import pytesseract; import openai; import faiss; print('All imports successful!')"
-    
+
     - name: Test CLI
       run: |
         python squeezer.py --help
-    
+
     - name: Test version
       run: |
         python -c "with open('VERSION') as f: print(f'Version: {f.read().strip()}')"
+
+    - name: Run tests
+      run: |
+        pytest tests/ -q --cov=src --cov-report=term-missing
 
   build:
     name: Build
@@ -75,13 +80,13 @@ jobs:
     needs: [lint, test]
     
     steps:
-    - uses: actions/checkout@v3
-    
+    - uses: actions/checkout@v7
+
     - name: Set up Python
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@v7
       with:
         python-version: '3.9'
-    
+
     - name: Install build dependencies
       run: |
         python -m pip install --upgrade pip
